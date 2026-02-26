@@ -3,6 +3,7 @@ plugins {
 	id 'org.jetbrains.kotlin.plugin.spring' version '2.2.21'
 	id 'org.springframework.boot' version '4.0.2'
 	id 'io.spring.dependency-management' version '1.1.7'
+    id "org.jooq.jooq-codegen-gradle" version "3.19.29"
 }
 
 group = 'org.example'
@@ -32,6 +33,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	jooqCodegen 'org.postgresql:postgresql'
 }
 
 kotlin {
@@ -42,4 +44,27 @@ kotlin {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+jooq {
+    configuration {
+        jdbc {
+            driver = 'org.postgresql.Driver'
+            url = 'jdbc:postgresql://localhost:5432/devdb'
+            user = 'devuser'
+            password = 'devpassword'
+        }
+
+        generator {
+            name = 'org.jooq.codegen.KotlinGenerator'
+            database {
+                name = 'org.jooq.meta.postgres.PostgresDatabase'
+                inputSchema = 'public'
+            }
+            target {
+                packageName = 'org.example.backend.adapters.out.models'
+                directory = 'src/main/kotlin'
+            }
+        }
+    }
 }

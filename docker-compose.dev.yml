@@ -1,0 +1,11 @@
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: devdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - /var/lib/postgresql/data
