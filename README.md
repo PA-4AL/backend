@@ -4,7 +4,9 @@ Ceci est le backend
 
 ## Installation
 - Lancer la database avec docker-compose
-`docker-compose -f docker.compose.dev.yml up -d`
+```bash
+  docker-compose -f docker.compose.dev.yml up -d
+```
 
 - Run la task "jooqCodegen" pour générer les classes JOOQ à partir de la base de données
 `./gradlew jooqCodegen`

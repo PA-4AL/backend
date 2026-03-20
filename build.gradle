@@ -12,7 +12,7 @@ description = 'backend'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(24)
+		languageVersion = JavaLanguageVersion.of(25)
 	}
 }
 
@@ -62,8 +62,11 @@ jooq {
                 inputSchema = 'public'
             }
             target {
-                packageName = 'org.example.backend.adapters.out.models'
+                packageName = 'org.example.backend.database'
                 directory = 'src/main/kotlin'
+            }
+            generate {
+                kotlinNotNullRecordAttributes = true
             }
         }
     }
