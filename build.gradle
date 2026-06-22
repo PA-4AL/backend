@@ -12,7 +12,9 @@ description = 'backend'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		// 21 LTS : Kotlin 2.2 ne supporte pas la target JVM 25 (max 24),
+		// et l'image Docker de prod (infra) est en JRE 21.
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -24,6 +26,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jooq'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'org.postgresql:postgresql'
 	implementation 'tools.jackson.module:jackson-module-kotlin'
@@ -50,9 +54,10 @@ jooq {
     configuration {
         jdbc {
             driver = 'org.postgresql.Driver'
-            url = 'jdbc:postgresql://localhost:5432/devdb'
-            user = 'devuser'
-            password = 'devpassword'
+            // Base "pa" de l'infra (infra/docker-compose.yml), schéma spec §6
+            url = 'jdbc:postgresql://localhost:5432/pa'
+            user = 'pa'
+            password = 'pa'
         }
 
         generator {
@@ -60,6 +65,8 @@ jooq {
             database {
                 name = 'org.jooq.meta.postgres.PostgresDatabase'
                 inputSchema = 'public'
+                // Exclut le suivi Liquibase et les routines de l'extension pgcrypto
+                excludes = 'databasechangelog.*|armor.*|dearmor|crypt|decrypt.*|digest|encrypt.*|gen_random_.*|gen_salt|hmac|pgp_.*'
             }
             target {
                 packageName = 'org.example.backend.database'
