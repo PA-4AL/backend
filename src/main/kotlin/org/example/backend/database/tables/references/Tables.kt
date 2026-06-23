@@ -4,29 +4,89 @@
 package org.example.backend.database.tables.references
 
 
-import org.example.backend.database.tables.Matchdb
-import org.example.backend.database.tables.Playerdb
-import org.example.backend.database.tables.Tournamentdb
-import org.example.backend.database.tables.Usersdb
+import org.example.backend.database.tables.Disputes
+import org.example.backend.database.tables.GameAccounts
+import org.example.backend.database.tables.Jobs
+import org.example.backend.database.tables.MatchGames
+import org.example.backend.database.tables.Matches
+import org.example.backend.database.tables.NotificationSettings
+import org.example.backend.database.tables.Phases
+import org.example.backend.database.tables.Registrations
+import org.example.backend.database.tables.ScoreReports
+import org.example.backend.database.tables.TeamMembers
+import org.example.backend.database.tables.Teams
+import org.example.backend.database.tables.TournamentOrganizers
+import org.example.backend.database.tables.Tournaments
+import org.example.backend.database.tables.Users
 
 
 
 /**
- * The table <code>public.matchdb</code>.
+ * The table <code>public.disputes</code>.
  */
-val MATCHDB: Matchdb = Matchdb.MATCHDB
+val DISPUTES: Disputes = Disputes.DISPUTES
 
 /**
- * The table <code>public.playerdb</code>.
+ * The table <code>public.game_accounts</code>.
  */
-val PLAYERDB: Playerdb = Playerdb.PLAYERDB
+val GAME_ACCOUNTS: GameAccounts = GameAccounts.GAME_ACCOUNTS
 
 /**
- * The table <code>public.tournamentdb</code>.
+ * The table <code>public.jobs</code>.
  */
-val TOURNAMENTDB: Tournamentdb = Tournamentdb.TOURNAMENTDB
+val JOBS: Jobs = Jobs.JOBS
 
 /**
- * The table <code>public.usersdb</code>.
+ * The table <code>public.match_games</code>.
  */
-val USERSDB: Usersdb = Usersdb.USERSDB
+val MATCH_GAMES: MatchGames = MatchGames.MATCH_GAMES
+
+/**
+ * The table <code>public.matches</code>.
+ */
+val MATCHES: Matches = Matches.MATCHES
+
+/**
+ * The table <code>public.notification_settings</code>.
+ */
+val NOTIFICATION_SETTINGS: NotificationSettings = NotificationSettings.NOTIFICATION_SETTINGS
+
+/**
+ * The table <code>public.phases</code>.
+ */
+val PHASES: Phases = Phases.PHASES
+
+/**
+ * The table <code>public.registrations</code>.
+ */
+val REGISTRATIONS: Registrations = Registrations.REGISTRATIONS
+
+/**
+ * The table <code>public.score_reports</code>.
+ */
+val SCORE_REPORTS: ScoreReports = ScoreReports.SCORE_REPORTS
+
+/**
+ * The table <code>public.team_members</code>.
+ */
+val TEAM_MEMBERS: TeamMembers = TeamMembers.TEAM_MEMBERS
+
+/**
+ * The table <code>public.teams</code>.
+ */
+val TEAMS: Teams = Teams.TEAMS
+
+/**
+ * The table <code>public.tournament_organizers</code>.
+ */
+val TOURNAMENT_ORGANIZERS: TournamentOrganizers = TournamentOrganizers.TOURNAMENT_ORGANIZERS
+
+/**
+ * The table <code>public.tournaments</code>.
+ */
+val TOURNAMENTS: Tournaments = Tournaments.TOURNAMENTS
+
+/**
+ * The table <code>public.users</code>.
+ */
+val USERS: Users = Users.USERS

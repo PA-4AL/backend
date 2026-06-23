@@ -4,14 +4,34 @@
 package org.example.backend.database.keys
 
 
-import org.example.backend.database.tables.Matchdb
-import org.example.backend.database.tables.Playerdb
-import org.example.backend.database.tables.Tournamentdb
-import org.example.backend.database.tables.Usersdb
-import org.example.backend.database.tables.records.MatchdbRecord
-import org.example.backend.database.tables.records.PlayerdbRecord
-import org.example.backend.database.tables.records.TournamentdbRecord
-import org.example.backend.database.tables.records.UsersdbRecord
+import org.example.backend.database.tables.Disputes
+import org.example.backend.database.tables.GameAccounts
+import org.example.backend.database.tables.Jobs
+import org.example.backend.database.tables.MatchGames
+import org.example.backend.database.tables.Matches
+import org.example.backend.database.tables.NotificationSettings
+import org.example.backend.database.tables.Phases
+import org.example.backend.database.tables.Registrations
+import org.example.backend.database.tables.ScoreReports
+import org.example.backend.database.tables.TeamMembers
+import org.example.backend.database.tables.Teams
+import org.example.backend.database.tables.TournamentOrganizers
+import org.example.backend.database.tables.Tournaments
+import org.example.backend.database.tables.Users
+import org.example.backend.database.tables.records.DisputesRecord
+import org.example.backend.database.tables.records.GameAccountsRecord
+import org.example.backend.database.tables.records.JobsRecord
+import org.example.backend.database.tables.records.MatchGamesRecord
+import org.example.backend.database.tables.records.MatchesRecord
+import org.example.backend.database.tables.records.NotificationSettingsRecord
+import org.example.backend.database.tables.records.PhasesRecord
+import org.example.backend.database.tables.records.RegistrationsRecord
+import org.example.backend.database.tables.records.ScoreReportsRecord
+import org.example.backend.database.tables.records.TeamMembersRecord
+import org.example.backend.database.tables.records.TeamsRecord
+import org.example.backend.database.tables.records.TournamentOrganizersRecord
+import org.example.backend.database.tables.records.TournamentsRecord
+import org.example.backend.database.tables.records.UsersRecord
 import org.jooq.ForeignKey
 import org.jooq.UniqueKey
 import org.jooq.impl.DSL
@@ -23,20 +43,50 @@ import org.jooq.impl.Internal
 // UNIQUE and PRIMARY KEY definitions
 // -------------------------------------------------------------------------
 
-val MATCHDB_PKEY: UniqueKey<MatchdbRecord> = Internal.createUniqueKey(Matchdb.MATCHDB, DSL.name("matchdb_pkey"), arrayOf(Matchdb.MATCHDB.ID), true)
-val MATCHDB_TOURNAMENT_ID_PLAYER1_ID_PLAYER2_ID_KEY: UniqueKey<MatchdbRecord> = Internal.createUniqueKey(Matchdb.MATCHDB, DSL.name("matchdb_tournament_id_player1_id_player2_id_key"), arrayOf(Matchdb.MATCHDB.TOURNAMENT_ID, Matchdb.MATCHDB.PLAYER1_ID, Matchdb.MATCHDB.PLAYER2_ID), true)
-val PLAYERDB_PKEY: UniqueKey<PlayerdbRecord> = Internal.createUniqueKey(Playerdb.PLAYERDB, DSL.name("playerdb_pkey"), arrayOf(Playerdb.PLAYERDB.ID), true)
-val TOURNAMENTDB_PKEY: UniqueKey<TournamentdbRecord> = Internal.createUniqueKey(Tournamentdb.TOURNAMENTDB, DSL.name("tournamentdb_pkey"), arrayOf(Tournamentdb.TOURNAMENTDB.ID), true)
-val USERSDB_PKEY: UniqueKey<UsersdbRecord> = Internal.createUniqueKey(Usersdb.USERSDB, DSL.name("usersdb_pkey"), arrayOf(Usersdb.USERSDB.ID), true)
-val USERSDB_USERNAME_KEY: UniqueKey<UsersdbRecord> = Internal.createUniqueKey(Usersdb.USERSDB, DSL.name("usersdb_username_key"), arrayOf(Usersdb.USERSDB.USERNAME), true)
+val DISPUTES_PKEY: UniqueKey<DisputesRecord> = Internal.createUniqueKey(Disputes.DISPUTES, DSL.name("disputes_pkey"), arrayOf(Disputes.DISPUTES.ID), true)
+val GAME_ACCOUNTS_PKEY: UniqueKey<GameAccountsRecord> = Internal.createUniqueKey(GameAccounts.GAME_ACCOUNTS, DSL.name("game_accounts_pkey"), arrayOf(GameAccounts.GAME_ACCOUNTS.ID), true)
+val JOBS_PKEY: UniqueKey<JobsRecord> = Internal.createUniqueKey(Jobs.JOBS, DSL.name("jobs_pkey"), arrayOf(Jobs.JOBS.ID), true)
+val MATCH_GAMES_PKEY: UniqueKey<MatchGamesRecord> = Internal.createUniqueKey(MatchGames.MATCH_GAMES, DSL.name("match_games_pkey"), arrayOf(MatchGames.MATCH_GAMES.ID), true)
+val MATCHES_PKEY: UniqueKey<MatchesRecord> = Internal.createUniqueKey(Matches.MATCHES, DSL.name("matches_pkey"), arrayOf(Matches.MATCHES.ID), true)
+val NOTIFICATION_SETTINGS_PKEY: UniqueKey<NotificationSettingsRecord> = Internal.createUniqueKey(NotificationSettings.NOTIFICATION_SETTINGS, DSL.name("notification_settings_pkey"), arrayOf(NotificationSettings.NOTIFICATION_SETTINGS.ID), true)
+val PHASES_PKEY: UniqueKey<PhasesRecord> = Internal.createUniqueKey(Phases.PHASES, DSL.name("phases_pkey"), arrayOf(Phases.PHASES.ID), true)
+val REGISTRATION_UNIQUE_TEAM: UniqueKey<RegistrationsRecord> = Internal.createUniqueKey(Registrations.REGISTRATIONS, DSL.name("registration_unique_team"), arrayOf(Registrations.REGISTRATIONS.TOURNAMENT_ID, Registrations.REGISTRATIONS.TEAM_ID), true)
+val REGISTRATION_UNIQUE_USER: UniqueKey<RegistrationsRecord> = Internal.createUniqueKey(Registrations.REGISTRATIONS, DSL.name("registration_unique_user"), arrayOf(Registrations.REGISTRATIONS.TOURNAMENT_ID, Registrations.REGISTRATIONS.USER_ID), true)
+val REGISTRATIONS_PKEY: UniqueKey<RegistrationsRecord> = Internal.createUniqueKey(Registrations.REGISTRATIONS, DSL.name("registrations_pkey"), arrayOf(Registrations.REGISTRATIONS.ID), true)
+val SCORE_REPORTS_PKEY: UniqueKey<ScoreReportsRecord> = Internal.createUniqueKey(ScoreReports.SCORE_REPORTS, DSL.name("score_reports_pkey"), arrayOf(ScoreReports.SCORE_REPORTS.ID), true)
+val TEAM_MEMBERS_PKEY: UniqueKey<TeamMembersRecord> = Internal.createUniqueKey(TeamMembers.TEAM_MEMBERS, DSL.name("team_members_pkey"), arrayOf(TeamMembers.TEAM_MEMBERS.TEAM_ID, TeamMembers.TEAM_MEMBERS.USER_ID), true)
+val TEAMS_PKEY: UniqueKey<TeamsRecord> = Internal.createUniqueKey(Teams.TEAMS, DSL.name("teams_pkey"), arrayOf(Teams.TEAMS.ID), true)
+val TOURNAMENT_ORGANIZERS_PKEY: UniqueKey<TournamentOrganizersRecord> = Internal.createUniqueKey(TournamentOrganizers.TOURNAMENT_ORGANIZERS, DSL.name("tournament_organizers_pkey"), arrayOf(TournamentOrganizers.TOURNAMENT_ORGANIZERS.TOURNAMENT_ID, TournamentOrganizers.TOURNAMENT_ORGANIZERS.USER_ID), true)
+val TOURNAMENTS_PKEY: UniqueKey<TournamentsRecord> = Internal.createUniqueKey(Tournaments.TOURNAMENTS, DSL.name("tournaments_pkey"), arrayOf(Tournaments.TOURNAMENTS.ID), true)
+val USERS_EMAIL_KEY: UniqueKey<UsersRecord> = Internal.createUniqueKey(Users.USERS, DSL.name("users_email_key"), arrayOf(Users.USERS.EMAIL), true)
+val USERS_KEYCLOAK_ID_KEY: UniqueKey<UsersRecord> = Internal.createUniqueKey(Users.USERS, DSL.name("users_keycloak_id_key"), arrayOf(Users.USERS.KEYCLOAK_ID), true)
+val USERS_PKEY: UniqueKey<UsersRecord> = Internal.createUniqueKey(Users.USERS, DSL.name("users_pkey"), arrayOf(Users.USERS.ID), true)
 
 // -------------------------------------------------------------------------
 // FOREIGN KEY definitions
 // -------------------------------------------------------------------------
 
-val MATCHDB__MATCHDB_PLAYER1_ID_FKEY: ForeignKey<MatchdbRecord, PlayerdbRecord> = Internal.createForeignKey(Matchdb.MATCHDB, DSL.name("matchdb_player1_id_fkey"), arrayOf(Matchdb.MATCHDB.PLAYER1_ID), org.example.backend.database.keys.PLAYERDB_PKEY, arrayOf(Playerdb.PLAYERDB.ID), true)
-val MATCHDB__MATCHDB_PLAYER2_ID_FKEY: ForeignKey<MatchdbRecord, PlayerdbRecord> = Internal.createForeignKey(Matchdb.MATCHDB, DSL.name("matchdb_player2_id_fkey"), arrayOf(Matchdb.MATCHDB.PLAYER2_ID), org.example.backend.database.keys.PLAYERDB_PKEY, arrayOf(Playerdb.PLAYERDB.ID), true)
-val MATCHDB__MATCHDB_TOURNAMENT_ID_FKEY: ForeignKey<MatchdbRecord, TournamentdbRecord> = Internal.createForeignKey(Matchdb.MATCHDB, DSL.name("matchdb_tournament_id_fkey"), arrayOf(Matchdb.MATCHDB.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTDB_PKEY, arrayOf(Tournamentdb.TOURNAMENTDB.ID), true)
-val MATCHDB__MATCHDB_WINNER_ID_FKEY: ForeignKey<MatchdbRecord, PlayerdbRecord> = Internal.createForeignKey(Matchdb.MATCHDB, DSL.name("matchdb_winner_id_fkey"), arrayOf(Matchdb.MATCHDB.WINNER_ID), org.example.backend.database.keys.PLAYERDB_PKEY, arrayOf(Playerdb.PLAYERDB.ID), true)
-val PLAYERDB__PLAYERDB_TOURNAMENT_ID_FKEY: ForeignKey<PlayerdbRecord, TournamentdbRecord> = Internal.createForeignKey(Playerdb.PLAYERDB, DSL.name("playerdb_tournament_id_fkey"), arrayOf(Playerdb.PLAYERDB.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTDB_PKEY, arrayOf(Tournamentdb.TOURNAMENTDB.ID), true)
-val PLAYERDB__PLAYERDB_USER_ID_FKEY: ForeignKey<PlayerdbRecord, PlayerdbRecord> = Internal.createForeignKey(Playerdb.PLAYERDB, DSL.name("playerdb_user_id_fkey"), arrayOf(Playerdb.PLAYERDB.USER_ID), org.example.backend.database.keys.PLAYERDB_PKEY, arrayOf(Playerdb.PLAYERDB.ID), true)
+val DISPUTES__DISPUTES_MATCH_ID_FKEY: ForeignKey<DisputesRecord, MatchesRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_match_id_fkey"), arrayOf(Disputes.DISPUTES.MATCH_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
+val DISPUTES__DISPUTES_OPENED_BY_FKEY: ForeignKey<DisputesRecord, UsersRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_opened_by_fkey"), arrayOf(Disputes.DISPUTES.OPENED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val DISPUTES__DISPUTES_RESOLVED_BY_FKEY: ForeignKey<DisputesRecord, UsersRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_resolved_by_fkey"), arrayOf(Disputes.DISPUTES.RESOLVED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val GAME_ACCOUNTS__GAME_ACCOUNTS_USER_ID_FKEY: ForeignKey<GameAccountsRecord, UsersRecord> = Internal.createForeignKey(GameAccounts.GAME_ACCOUNTS, DSL.name("game_accounts_user_id_fkey"), arrayOf(GameAccounts.GAME_ACCOUNTS.USER_ID), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val JOBS__JOBS_CREATED_BY_FKEY: ForeignKey<JobsRecord, UsersRecord> = Internal.createForeignKey(Jobs.JOBS, DSL.name("jobs_created_by_fkey"), arrayOf(Jobs.JOBS.CREATED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val MATCH_GAMES__MATCH_GAMES_MATCH_ID_FKEY: ForeignKey<MatchGamesRecord, MatchesRecord> = Internal.createForeignKey(MatchGames.MATCH_GAMES, DSL.name("match_games_match_id_fkey"), arrayOf(MatchGames.MATCH_GAMES.MATCH_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
+val MATCHES__MATCHES_NEXT_MATCH_ID_FKEY: ForeignKey<MatchesRecord, MatchesRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_next_match_id_fkey"), arrayOf(Matches.MATCHES.NEXT_MATCH_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
+val MATCHES__MATCHES_NEXT_MATCH_LOSER_ID_FKEY: ForeignKey<MatchesRecord, MatchesRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_next_match_loser_id_fkey"), arrayOf(Matches.MATCHES.NEXT_MATCH_LOSER_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
+val MATCHES__MATCHES_PARTICIPANT1_ID_FKEY: ForeignKey<MatchesRecord, RegistrationsRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_participant1_id_fkey"), arrayOf(Matches.MATCHES.PARTICIPANT1_ID), org.example.backend.database.keys.REGISTRATIONS_PKEY, arrayOf(Registrations.REGISTRATIONS.ID), true)
+val MATCHES__MATCHES_PARTICIPANT2_ID_FKEY: ForeignKey<MatchesRecord, RegistrationsRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_participant2_id_fkey"), arrayOf(Matches.MATCHES.PARTICIPANT2_ID), org.example.backend.database.keys.REGISTRATIONS_PKEY, arrayOf(Registrations.REGISTRATIONS.ID), true)
+val MATCHES__MATCHES_PHASE_ID_FKEY: ForeignKey<MatchesRecord, PhasesRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_phase_id_fkey"), arrayOf(Matches.MATCHES.PHASE_ID), org.example.backend.database.keys.PHASES_PKEY, arrayOf(Phases.PHASES.ID), true)
+val MATCHES__MATCHES_WINNER_ID_FKEY: ForeignKey<MatchesRecord, RegistrationsRecord> = Internal.createForeignKey(Matches.MATCHES, DSL.name("matches_winner_id_fkey"), arrayOf(Matches.MATCHES.WINNER_ID), org.example.backend.database.keys.REGISTRATIONS_PKEY, arrayOf(Registrations.REGISTRATIONS.ID), true)
+val NOTIFICATION_SETTINGS__NOTIFICATION_SETTINGS_USER_ID_FKEY: ForeignKey<NotificationSettingsRecord, UsersRecord> = Internal.createForeignKey(NotificationSettings.NOTIFICATION_SETTINGS, DSL.name("notification_settings_user_id_fkey"), arrayOf(NotificationSettings.NOTIFICATION_SETTINGS.USER_ID), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val PHASES__PHASES_TOURNAMENT_ID_FKEY: ForeignKey<PhasesRecord, TournamentsRecord> = Internal.createForeignKey(Phases.PHASES, DSL.name("phases_tournament_id_fkey"), arrayOf(Phases.PHASES.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTS_PKEY, arrayOf(Tournaments.TOURNAMENTS.ID), true)
+val REGISTRATIONS__REGISTRATIONS_TEAM_ID_FKEY: ForeignKey<RegistrationsRecord, TeamsRecord> = Internal.createForeignKey(Registrations.REGISTRATIONS, DSL.name("registrations_team_id_fkey"), arrayOf(Registrations.REGISTRATIONS.TEAM_ID), org.example.backend.database.keys.TEAMS_PKEY, arrayOf(Teams.TEAMS.ID), true)
+val REGISTRATIONS__REGISTRATIONS_TOURNAMENT_ID_FKEY: ForeignKey<RegistrationsRecord, TournamentsRecord> = Internal.createForeignKey(Registrations.REGISTRATIONS, DSL.name("registrations_tournament_id_fkey"), arrayOf(Registrations.REGISTRATIONS.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTS_PKEY, arrayOf(Tournaments.TOURNAMENTS.ID), true)
+val REGISTRATIONS__REGISTRATIONS_USER_ID_FKEY: ForeignKey<RegistrationsRecord, UsersRecord> = Internal.createForeignKey(Registrations.REGISTRATIONS, DSL.name("registrations_user_id_fkey"), arrayOf(Registrations.REGISTRATIONS.USER_ID), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val SCORE_REPORTS__SCORE_REPORTS_MATCH_ID_FKEY: ForeignKey<ScoreReportsRecord, MatchesRecord> = Internal.createForeignKey(ScoreReports.SCORE_REPORTS, DSL.name("score_reports_match_id_fkey"), arrayOf(ScoreReports.SCORE_REPORTS.MATCH_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
+val SCORE_REPORTS__SCORE_REPORTS_REPORTED_BY_FKEY: ForeignKey<ScoreReportsRecord, UsersRecord> = Internal.createForeignKey(ScoreReports.SCORE_REPORTS, DSL.name("score_reports_reported_by_fkey"), arrayOf(ScoreReports.SCORE_REPORTS.REPORTED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val TEAM_MEMBERS__TEAM_MEMBERS_TEAM_ID_FKEY: ForeignKey<TeamMembersRecord, TeamsRecord> = Internal.createForeignKey(TeamMembers.TEAM_MEMBERS, DSL.name("team_members_team_id_fkey"), arrayOf(TeamMembers.TEAM_MEMBERS.TEAM_ID), org.example.backend.database.keys.TEAMS_PKEY, arrayOf(Teams.TEAMS.ID), true)
+val TEAM_MEMBERS__TEAM_MEMBERS_USER_ID_FKEY: ForeignKey<TeamMembersRecord, UsersRecord> = Internal.createForeignKey(TeamMembers.TEAM_MEMBERS, DSL.name("team_members_user_id_fkey"), arrayOf(TeamMembers.TEAM_MEMBERS.USER_ID), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val TEAMS__TEAMS_CREATED_BY_FKEY: ForeignKey<TeamsRecord, UsersRecord> = Internal.createForeignKey(Teams.TEAMS, DSL.name("teams_created_by_fkey"), arrayOf(Teams.TEAMS.CREATED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
+val TOURNAMENT_ORGANIZERS__TOURNAMENT_ORGANIZERS_TOURNAMENT_ID_FKEY: ForeignKey<TournamentOrganizersRecord, TournamentsRecord> = Internal.createForeignKey(TournamentOrganizers.TOURNAMENT_ORGANIZERS, DSL.name("tournament_organizers_tournament_id_fkey"), arrayOf(TournamentOrganizers.TOURNAMENT_ORGANIZERS.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTS_PKEY, arrayOf(Tournaments.TOURNAMENTS.ID), true)
+val TOURNAMENT_ORGANIZERS__TOURNAMENT_ORGANIZERS_USER_ID_FKEY: ForeignKey<TournamentOrganizersRecord, UsersRecord> = Internal.createForeignKey(TournamentOrganizers.TOURNAMENT_ORGANIZERS, DSL.name("tournament_organizers_user_id_fkey"), arrayOf(TournamentOrganizers.TOURNAMENT_ORGANIZERS.USER_ID), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)

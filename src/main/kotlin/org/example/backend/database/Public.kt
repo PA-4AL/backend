@@ -6,10 +6,20 @@ package org.example.backend.database
 
 import kotlin.collections.List
 
-import org.example.backend.database.tables.Matchdb
-import org.example.backend.database.tables.Playerdb
-import org.example.backend.database.tables.Tournamentdb
-import org.example.backend.database.tables.Usersdb
+import org.example.backend.database.tables.Disputes
+import org.example.backend.database.tables.GameAccounts
+import org.example.backend.database.tables.Jobs
+import org.example.backend.database.tables.MatchGames
+import org.example.backend.database.tables.Matches
+import org.example.backend.database.tables.NotificationSettings
+import org.example.backend.database.tables.Phases
+import org.example.backend.database.tables.Registrations
+import org.example.backend.database.tables.ScoreReports
+import org.example.backend.database.tables.TeamMembers
+import org.example.backend.database.tables.Teams
+import org.example.backend.database.tables.TournamentOrganizers
+import org.example.backend.database.tables.Tournaments
+import org.example.backend.database.tables.Users
 import org.jooq.Catalog
 import org.jooq.Table
 import org.jooq.impl.SchemaImpl
@@ -29,31 +39,91 @@ open class Public : SchemaImpl("public", DefaultCatalog.DEFAULT_CATALOG) {
     }
 
     /**
-     * The table <code>public.matchdb</code>.
+     * The table <code>public.disputes</code>.
      */
-    val MATCHDB: Matchdb get() = Matchdb.MATCHDB
+    val DISPUTES: Disputes get() = Disputes.DISPUTES
 
     /**
-     * The table <code>public.playerdb</code>.
+     * The table <code>public.game_accounts</code>.
      */
-    val PLAYERDB: Playerdb get() = Playerdb.PLAYERDB
+    val GAME_ACCOUNTS: GameAccounts get() = GameAccounts.GAME_ACCOUNTS
 
     /**
-     * The table <code>public.tournamentdb</code>.
+     * The table <code>public.jobs</code>.
      */
-    val TOURNAMENTDB: Tournamentdb get() = Tournamentdb.TOURNAMENTDB
+    val JOBS: Jobs get() = Jobs.JOBS
 
     /**
-     * The table <code>public.usersdb</code>.
+     * The table <code>public.match_games</code>.
      */
-    val USERSDB: Usersdb get() = Usersdb.USERSDB
+    val MATCH_GAMES: MatchGames get() = MatchGames.MATCH_GAMES
+
+    /**
+     * The table <code>public.matches</code>.
+     */
+    val MATCHES: Matches get() = Matches.MATCHES
+
+    /**
+     * The table <code>public.notification_settings</code>.
+     */
+    val NOTIFICATION_SETTINGS: NotificationSettings get() = NotificationSettings.NOTIFICATION_SETTINGS
+
+    /**
+     * The table <code>public.phases</code>.
+     */
+    val PHASES: Phases get() = Phases.PHASES
+
+    /**
+     * The table <code>public.registrations</code>.
+     */
+    val REGISTRATIONS: Registrations get() = Registrations.REGISTRATIONS
+
+    /**
+     * The table <code>public.score_reports</code>.
+     */
+    val SCORE_REPORTS: ScoreReports get() = ScoreReports.SCORE_REPORTS
+
+    /**
+     * The table <code>public.team_members</code>.
+     */
+    val TEAM_MEMBERS: TeamMembers get() = TeamMembers.TEAM_MEMBERS
+
+    /**
+     * The table <code>public.teams</code>.
+     */
+    val TEAMS: Teams get() = Teams.TEAMS
+
+    /**
+     * The table <code>public.tournament_organizers</code>.
+     */
+    val TOURNAMENT_ORGANIZERS: TournamentOrganizers get() = TournamentOrganizers.TOURNAMENT_ORGANIZERS
+
+    /**
+     * The table <code>public.tournaments</code>.
+     */
+    val TOURNAMENTS: Tournaments get() = Tournaments.TOURNAMENTS
+
+    /**
+     * The table <code>public.users</code>.
+     */
+    val USERS: Users get() = Users.USERS
 
     override fun getCatalog(): Catalog = DefaultCatalog.DEFAULT_CATALOG
 
     override fun getTables(): List<Table<*>> = listOf(
-        Matchdb.MATCHDB,
-        Playerdb.PLAYERDB,
-        Tournamentdb.TOURNAMENTDB,
-        Usersdb.USERSDB
+        Disputes.DISPUTES,
+        GameAccounts.GAME_ACCOUNTS,
+        Jobs.JOBS,
+        MatchGames.MATCH_GAMES,
+        Matches.MATCHES,
+        NotificationSettings.NOTIFICATION_SETTINGS,
+        Phases.PHASES,
+        Registrations.REGISTRATIONS,
+        ScoreReports.SCORE_REPORTS,
+        TeamMembers.TEAM_MEMBERS,
+        Teams.TEAMS,
+        TournamentOrganizers.TOURNAMENT_ORGANIZERS,
+        Tournaments.TOURNAMENTS,
+        Users.USERS
     )
 }
