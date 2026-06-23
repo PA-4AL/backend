@@ -3,11 +3,22 @@ spring:
     name: backend
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/mydatabase
-    username: myuser
-    password: mypassword
+    # Base "pa" de l'infra (infra/docker-compose.yml) — surchargé par les
+    # variables SPRING_DATASOURCE_* (Makefile infra, Cloud Run)
+    url: jdbc:postgresql://localhost:5432/pa
+    username: pa
+    password: pa
   jooq:
     sql-dialect: POSTGRES
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Realm Keycloak (infra/keycloak/realm-pa-tournament.json)
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/pa-tournament}
 
-
-
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
