@@ -37,7 +37,9 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it
-                    .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
+                    // Une ligne par version : une nouvelle version d'API ne doit pas
+                    // hériter silencieusement de l'accès public (docs/API-VERSIONING.md).
+                    .requestMatchers(HttpMethod.GET, "/api/v1/tournaments/**").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->
