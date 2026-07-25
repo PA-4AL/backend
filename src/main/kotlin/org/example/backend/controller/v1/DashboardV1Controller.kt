@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.controller.v1
 
 import org.example.backend.model.ActivityItemDto
 import org.example.backend.model.DashboardKpisDto
@@ -7,9 +7,10 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+/** Préfixe `/api/v1` appliqué par `WebMvcConfig` — ne pas l'écrire ici. */
 @RestController
-@RequestMapping("/api/dashboard")
-class DashboardController(private val service: DashboardService) {
+@RequestMapping("/dashboard", version = "1+")
+class DashboardV1Controller(private val service: DashboardService) {
 
     @GetMapping("/kpis")
     fun kpis(): DashboardKpisDto = service.kpis()
