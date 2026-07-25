@@ -4,6 +4,11 @@
 > **Commit analysé :** `728416e`
 > **Périmètre :** dépôt `backend/` uniquement, hors code jOOQ généré (`src/main/kotlin/org/example/backend/database/`)
 > **Référence fonctionnelle :** `docs/PA-Tournament-Specs.md`
+>
+> **Amendé le 25/07/2026** — l'API est passée sous `/api/v1/` et les controllers
+> vivent dans `controller/v1/` : le versionnement d'API, listé plus bas comme absent,
+> est désormais en place (`docs/API-VERSIONING.md`). Les routes de ce document
+> intègrent le préfixe ; le reste du constat n'a pas été réévalué.
 
 Ce document décrit ce qui existe réellement dans le backend, comment le code est
 découpé, et ce qui reste à faire par rapport à la spécification. Il est destiné à
@@ -19,7 +24,7 @@ servir de base aux ADR à écrire et à la planification de la suite.
 | Code jOOQ généré (commité) | 14 tables + 13 enums + records / keys / indexes |
 | Migrations Liquibase | 3 changesets, 238 lignes de SQL |
 | Endpoints REST | **25** |
-| Tests | **1** (`contextLoads`) |
+| Tests | **5** (`contextLoads` + 4 sur le versionnement) |
 
 Répartition du code métier : services 941 lignes, repositories 685, DTOs 256,
 controllers 285, sécurité 72.
@@ -35,7 +40,7 @@ Une tranche verticale par domaine, un fichier par couche. Six domaines :
 `Tournament`, `Bracket`, `Registration`, `Profile`, `Team`, `Dashboard`.
 
 ```
-controller/XController.kt   → mapping HTTP + déballage du Jwt uniquement
+controller/v1/XV1Controller.kt → mapping HTTP + déballage du Jwt uniquement
 service/XService.kt         → règles métier + mise en forme FR / Europe-Paris + @Transactional
 repository/XRepository.kt   → jOOQ DSLContext, renvoie *Record ou data class de projection
 model/XDtos.kt              → DTOs sérialisés tels quels, taillés pour les écrans React
@@ -60,31 +65,31 @@ des initiales, libellés de round), partagé par `BracketService` et
 
 | Méthode | Route | Auth | Domaine |
 |---|---|---|---|
-| GET | `/api/tournaments` | public | Tournament |
-| GET | `/api/tournaments/{id}` | public | Tournament |
-| POST | `/api/tournaments` | JWT | Tournament |
-| GET | `/api/tournaments/{id}/bracket` | public | Bracket |
-| POST | `/api/tournaments/{id}/bracket/generate` | JWT | Bracket |
-| POST | `/api/matches/{id}/score` | JWT | Bracket |
-| GET | `/api/tournaments/{id}/participants` | public | Registration |
-| POST | `/api/tournaments/{id}/register` | JWT | Registration |
-| POST | `/api/tournaments/{id}/register-team` | JWT | Registration |
-| POST | `/api/tournaments/{id}/participants` | JWT | Registration (ajout manuel) |
-| GET | `/api/registrations/pending` | JWT | Registration |
-| POST | `/api/registrations/{id}/seed` | JWT | Registration |
-| POST | `/api/registrations/{id}/confirm` | JWT | Registration |
-| POST | `/api/registrations/{id}/reject` | JWT | Registration |
-| GET | `/api/me` | JWT | Profile |
-| PATCH | `/api/me` | JWT | Profile |
-| POST | `/api/me/game-accounts` | JWT | Profile |
-| DELETE | `/api/me/game-accounts/{id}` | JWT | Profile |
-| GET | `/api/teams/mine` | JWT | Team |
-| GET | `/api/teams/{id}` | JWT | Team |
-| POST | `/api/teams` | JWT | Team |
-| POST | `/api/teams/{id}/members` | JWT | Team |
-| DELETE | `/api/teams/{id}/members/{memberId}` | JWT | Team |
-| GET | `/api/dashboard/kpis` | JWT | Dashboard |
-| GET | `/api/dashboard/activity` | JWT | Dashboard |
+| GET | `/api/v1/tournaments` | public | Tournament |
+| GET | `/api/v1/tournaments/{id}` | public | Tournament |
+| POST | `/api/v1/tournaments` | JWT | Tournament |
+| GET | `/api/v1/tournaments/{id}/bracket` | public | Bracket |
+| POST | `/api/v1/tournaments/{id}/bracket/generate` | JWT | Bracket |
+| POST | `/api/v1/matches/{id}/score` | JWT | Bracket |
+| GET | `/api/v1/tournaments/{id}/participants` | public | Registration |
+| POST | `/api/v1/tournaments/{id}/register` | JWT | Registration |
+| POST | `/api/v1/tournaments/{id}/register-team` | JWT | Registration |
+| POST | `/api/v1/tournaments/{id}/participants` | JWT | Registration (ajout manuel) |
+| GET | `/api/v1/registrations/pending` | JWT | Registration |
+| POST | `/api/v1/registrations/{id}/seed` | JWT | Registration |
+| POST | `/api/v1/registrations/{id}/confirm` | JWT | Registration |
+| POST | `/api/v1/registrations/{id}/reject` | JWT | Registration |
+| GET | `/api/v1/me` | JWT | Profile |
+| PATCH | `/api/v1/me` | JWT | Profile |
+| POST | `/api/v1/me/game-accounts` | JWT | Profile |
+| DELETE | `/api/v1/me/game-accounts/{id}` | JWT | Profile |
+| GET | `/api/v1/teams/mine` | JWT | Team |
+| GET | `/api/v1/teams/{id}` | JWT | Team |
+| POST | `/api/v1/teams` | JWT | Team |
+| POST | `/api/v1/teams/{id}/members` | JWT | Team |
+| DELETE | `/api/v1/teams/{id}/members/{memberId}` | JWT | Team |
+| GET | `/api/v1/dashboard/kpis` | JWT | Dashboard |
+| GET | `/api/v1/dashboard/activity` | JWT | Dashboard |
 
 ---
 
@@ -172,7 +177,7 @@ Autres écarts :
 ### §4.2 — Bracket : conforme sur son périmètre, avec un angle mort
 
 Demandé et fait : génération par le backend, seeding aléatoire **et** manuel
-(`POST /api/registrations/{id}/seed`), gestion des byes pour un nombre de
+(`POST /api/v1/registrations/{id}/seed`), gestion des byes pour un nombre de
 participants qui n'est pas une puissance de 2, re-génération possible tant que le
 tournoi n'a pas démarré.
 
@@ -204,7 +209,7 @@ Manquant ou partiel :
 - **Validation manuelle des inscriptions** : les endpoints `confirm` / `reject`
   existent, mais `statusFor()` ne renvoie jamais `pending` — les inscriptions sont
   directement `confirmed` (ou `waitlist`). Il n'y a pas de drapeau « validation
-  requise » sur le tournoi, donc `/api/registrations/pending` ne remonte en
+  requise » sur le tournoi, donc `/api/v1/registrations/pending` ne remonte en
   pratique que des listes d'attente.
 
 ### §4.4 — Le module le plus en retard
@@ -235,12 +240,12 @@ statistiques** — alors que §6.2 pose justement que l'inscription peut être u
   ne peut que re-poller.
 - **Notifications configurables** : `notification_settings` est en base et générée
   en jOOQ, jamais touchée.
-- **Page publique partageable** : couverte par la règle `GET /api/tournaments/**`
+- **Page publique partageable** : couverte par la règle `GET /api/v1/tournaments/**`
   publique.
 - Écran spectateur et export image / PDF relèvent du frontend.
 
 Écart de sécurité lié : la **visibilité `private` n'est jamais filtrée**.
-`GET /api/tournaments` renvoie tous les tournois sans authentification, privés et
+`GET /api/v1/tournaments` renvoie tous les tournois sans authentification, privés et
 brouillons compris, alors que §3 limite le Visiteur à la « consultation publique ».
 
 ---
@@ -264,9 +269,9 @@ les ADR font partie des attendus non satisfaits.
 ## 7. Défauts techniques relevés
 
 **Autorisation** — aucun `@PreAuthorize`. N'importe quel compte authentifié peut
-appeler `POST /api/tournaments/{id}/participants`,
-`/api/registrations/{id}/confirm`, `/reject`, `/seed`,
-`/api/tournaments/{id}/bracket/generate` et `/api/matches/{id}/score` : rien ne
+appeler `POST /api/v1/tournaments/{id}/participants`,
+`/api/v1/registrations/{id}/confirm`, `/reject`, `/seed`,
+`/api/v1/tournaments/{id}/bracket/generate` et `/api/v1/matches/{id}/score` : rien ne
 vérifie qu'il est organisateur du tournoi. Les seuls contrôles de propriété écrits
 sont côté équipe (`isCaptain`) et compte de jeu (`deleteGameAccount` filtre sur
 `user_id`).
@@ -291,11 +296,10 @@ absent, les deux chemins peuvent donc diverger.
 **Champs en dur dans les DTOs** — `region = "—"` et `cashPrize = "—"` dans
 `TournamentDetailDto`.
 
-**Tests** — un seul `@SpringBootTest contextLoads`, qui nécessite une base
-joignable. Les dépendances de test (`webmvc-test`, `security-test`, `jooq-test`)
-sont déclarées mais inutilisées. Aucun test unitaire sur `seedSlots`, la
-propagation du vainqueur ou les transitions d'inscription — pourtant les trois
-endroits où la logique est réelle.
+**Tests** — le smoke test `contextLoads` et 4 tests MockMvc sur le versionnement
+(`ApiVersioningTests`), tous dépendants d'une base joignable. Aucun test unitaire sur
+`seedSlots`, la propagation du vainqueur ou les transitions d'inscription — pourtant
+les trois endroits où la logique est réelle.
 
 **Observabilité** — aucune corrélation d'identifiants, attendue par le brief sur la
 chaîne backend → worker → backend.

@@ -58,7 +58,7 @@ Les enums PostgreSQL sont générés en enums Kotlin (`database/enums/`) dont la
 
 Découpage classique en trois couches, un fichier par domaine (tournaments, bracket, registrations, profile, teams) :
 
-- `controller/` — mapping HTTP uniquement, aucune logique. Reçoit `@AuthenticationPrincipal jwt: Jwt` et transmet `jwt.subject` / `preferred_username` / `email` au service.
+- `controller/v1/` — mapping HTTP uniquement, aucune logique. Reçoit `@AuthenticationPrincipal jwt: Jwt` et transmet `jwt.subject` / `preferred_username` / `email` au service. **Un paquet par version d'API** (`controller/v1/`, plus tard `controller/v2/`), classes suffixées `V1` : le préfixe `/api/v1` est appliqué globalement par `config/WebMvcConfig.kt`, les `@RequestMapping` déclarent des chemins nus (`/tournaments`) et la version via `version = "1+"`. Voir `docs/API-VERSIONING.md` avant d'ajouter ou de modifier une route.
 - `service/` — logique métier + **mise en forme pour le frontend**. Les writes sont `@Transactional`. Les erreurs sont levées en `ResponseStatusException(HttpStatus.X, "message français")` (pas de `@ControllerAdvice`).
 - `repository/` — jOOQ `DSLContext` injecté, requêtes typées via `database/tables/references/*`. Renvoie soit des `*Record` jOOQ, soit de petites `data class` de projection déclarées en tête du fichier (`ParticipantRow`, `RegistrationInfo`…).
 - `model/` — DTOs `data class` sérialisés tels quels en JSON, + l'objet `Display` (`BracketDtos.kt`) qui centralise couleurs, initiales et libellés de round.
@@ -76,12 +76,17 @@ modifié, code ou message d'erreur changé) s'y répercute, ainsi que la ligne
 « Dernière mise à jour » de l'en-tête. Le lire avant de toucher à `controller/` ou
 `model/`.
 
+`docs/API-VERSIONING.md` est la **procédure de gestion des breaking changes** exigée
+par le brief de notation : mécanisme retenu, sémantique de `version = "N+"`, et la
+marche à suivre pour livrer une v2 sans toucher au code v1. À lire avant tout
+changement incompatible de contrat.
+
 `docs/ETAT-DES-LIEUX.md` est le rapport d'écart entre le code et la spec (couverture
 par module, dettes techniques, priorités) — instantané daté, pas un document vivant.
 
 ### Sécurité
 
-`config/SecurityConfig.kt` : API stateless, CSRF désactivé, CORS restreint à `app.cors.allowed-origins`. `GET /api/tournaments/**` est public (rôle Visiteur de la spec) ; tout le reste exige un JWT du realm Keycloak. Les rôles `realm_access.roles` sont convertis en autorités `ROLE_player` / `ROLE_organizer` / `ROLE_admin` — l'autorisation fine (`@PreAuthorize`) n'est **pas encore implémentée**, les contrôles de propriétaire/organisateur restent à écrire.
+`config/SecurityConfig.kt` : API stateless, CSRF désactivé, CORS restreint à `app.cors.allowed-origins`. `GET /api/v1/tournaments/**` est public (rôle Visiteur de la spec) — le matcher est déclaré version par version, une nouvelle version d'API n'hérite pas de l'accès anonyme ; tout le reste exige un JWT du realm Keycloak. Les rôles `realm_access.roles` sont convertis en autorités `ROLE_player` / `ROLE_organizer` / `ROLE_admin` — l'autorisation fine (`@PreAuthorize`) n'est **pas encore implémentée**, les contrôles de propriétaire/organisateur restent à écrire.
 
 ### Identité utilisateur
 
