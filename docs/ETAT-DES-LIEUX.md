@@ -24,7 +24,7 @@ servir de base aux ADR à écrire et à la planification de la suite.
 | Code jOOQ généré (commité) | 14 tables + 13 enums + records / keys / indexes |
 | Migrations Liquibase | 3 changesets, 238 lignes de SQL |
 | Endpoints REST | **25** |
-| Tests | **5** (`contextLoads` + 4 sur le versionnement) |
+| Tests | **13** — dont **8 sans base** (`DashboardServiceTests`, `DisplayTests`) |
 
 Répartition du code métier : services 941 lignes, repositories 685, DTOs 256,
 controllers 285, sécurité 72.
@@ -47,9 +47,10 @@ model/XDtos.kt              → DTOs sérialisés tels quels, taillés pour les 
 config/SecurityConfig.kt    → seule classe de configuration
 ```
 
-Le découpage est respecté partout **sauf un cas** : `DashboardService` injecte
-directement `DSLContext` et écrit ses requêtes jOOQ dans le service — il n'y a pas
-de `DashboardRepository`.
+Le découpage est respecté **partout** : plus aucun service n'injecte `DSLContext`,
+`repository/` reste la seule couche qui connaît jOOQ. `DashboardService` faisait
+exception jusqu'au 25/07/2026 ; ses requêtes vivent désormais dans
+`DashboardRepository`, ce qui a rendu sa mise en forme testable sans base.
 
 Projections locales déclarées en tête des repositories : `RegistrationInfo`,
 `ParticipantRow`, `RegistrationRow`, `TeamRow`, `MemberRow`, `GameAccountRow`,
@@ -296,10 +297,12 @@ absent, les deux chemins peuvent donc diverger.
 **Champs en dur dans les DTOs** — `region = "—"` et `cashPrize = "—"` dans
 `TournamentDetailDto`.
 
-**Tests** — le smoke test `contextLoads` et 4 tests MockMvc sur le versionnement
-(`ApiVersioningTests`), tous dépendants d'une base joignable. Aucun test unitaire sur
-`seedSlots`, la propagation du vainqueur ou les transitions d'inscription — pourtant
-les trois endroits où la logique est réelle.
+**Tests** — 13 au total. 5 démarrent le contexte Spring et exigent une base
+(`contextLoads`, `ApiVersioningTests`) ; 8 tournent en mémoire (`DashboardServiceTests`
+via un faux repository, `DisplayTests`). Restent sans couverture `seedSlots`, la
+propagation du vainqueur et les transitions d'inscription — trois endroits où la
+logique est réelle, et qui deviendront testables de la même façon une fois leurs
+services découplés de la base.
 
 **Observabilité** — aucune corrélation d'identifiants, attendue par le brief sur la
 chaîne backend → worker → backend.

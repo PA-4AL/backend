@@ -1,5 +1,8 @@
 package org.example.backend.model
 
+import java.time.Duration
+import java.time.OffsetDateTime
+
 /* DTOs du bracket, alignés sur frontend/src/api/types.ts (BracketData). */
 
 data class SlotDto(
@@ -63,4 +66,18 @@ object Display {
                 "1/${participants / 2} de finale" to "R$participants"
             }
         }
+
+    /**
+     * Ancienneté en clair : « À l'instant », « Il y a 12 min », « Il y a 3 h »…
+     * `now` est paramétrable pour rendre la fonction testable.
+     */
+    fun relativeTime(at: OffsetDateTime, now: OffsetDateTime = OffsetDateTime.now()): String {
+        val d = Duration.between(at, now)
+        return when {
+            d.toMinutes() < 1 -> "À l'instant"
+            d.toMinutes() < 60 -> "Il y a ${d.toMinutes()} min"
+            d.toHours() < 24 -> "Il y a ${d.toHours()} h"
+            else -> "Il y a ${d.toDays()} j"
+        }
+    }
 }
