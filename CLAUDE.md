@@ -65,6 +65,20 @@ Découpage classique en trois couches, un fichier par domaine (tournaments, brac
 
 Les DTOs sont **taillés pour les écrans React**, pas pour refléter les tables : ils contiennent des chaînes déjà formatées (`scheduleLabel` « démarré 14:30 », `code` « #A1B2C3 », statuts `done`/`live`/`scheduled`, couleurs hex). Toute la mise en forme — fuseau `Europe/Paris`, locale française — se fait côté backend. Ajouter un champ implique donc de savoir comment le frontend l'affiche.
 
+### Documentation de l'API — `docs/ENDPOINTS.md`
+
+`docs/ENDPOINTS.md` documente les 25 endpoints : route, auth, corps de requête, DTO
+de réponse, codes et messages d'erreur, plus les DTOs et les endpoints attendus par
+la spec mais absents. **C'est le contrat lu par le frontend : il doit être mis à
+jour dans le même commit que le code.** Toute modification d'un `@RestController`
+(endpoint ajouté ou supprimé, route/méthode renommée, DTO de requête ou de réponse
+modifié, code ou message d'erreur changé) s'y répercute, ainsi que la ligne
+« Dernière mise à jour » de l'en-tête. Le lire avant de toucher à `controller/` ou
+`model/`.
+
+`docs/ETAT-DES-LIEUX.md` est le rapport d'écart entre le code et la spec (couverture
+par module, dettes techniques, priorités) — instantané daté, pas un document vivant.
+
 ### Sécurité
 
 `config/SecurityConfig.kt` : API stateless, CSRF désactivé, CORS restreint à `app.cors.allowed-origins`. `GET /api/tournaments/**` est public (rôle Visiteur de la spec) ; tout le reste exige un JWT du realm Keycloak. Les rôles `realm_access.roles` sont convertis en autorités `ROLE_player` / `ROLE_organizer` / `ROLE_admin` — l'autorisation fine (`@PreAuthorize`) n'est **pas encore implémentée**, les contrôles de propriétaire/organisateur restent à écrire.
