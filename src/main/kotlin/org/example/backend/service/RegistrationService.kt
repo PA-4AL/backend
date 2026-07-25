@@ -2,6 +2,7 @@ package org.example.backend.service
 
 import org.example.backend.database.enums.RegistrationStatus
 import org.example.backend.database.enums.TournamentStatus
+import org.example.backend.model.Display
 import org.example.backend.model.ParticipantDto
 import org.example.backend.model.PendingRegistrationDto
 import org.example.backend.repository.RegistrationRepository
@@ -11,8 +12,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
-import java.time.Duration
-import java.time.OffsetDateTime
 import java.util.UUID
 
 @Service
@@ -29,7 +28,7 @@ class RegistrationService(
                 name = it.name,
                 status = it.status.literal,
                 seed = it.seed,
-                registeredLabel = relative(it.createdAt),
+                registeredLabel = Display.relativeTime(it.createdAt),
             )
         }
 
@@ -41,7 +40,7 @@ class RegistrationService(
                 tournamentId = it.tournamentId.toString(),
                 tournamentName = it.tournamentName,
                 status = it.status.literal,
-                registeredLabel = relative(it.createdAt),
+                registeredLabel = Display.relativeTime(it.createdAt),
             )
         }
 
@@ -173,15 +172,5 @@ class RegistrationService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "Transition impossible depuis « ${current.literal} »")
         }
         repo.updateStatus(id, to)
-    }
-
-    private fun relative(at: OffsetDateTime): String {
-        val d = Duration.between(at, OffsetDateTime.now())
-        return when {
-            d.toMinutes() < 1 -> "À l'instant"
-            d.toMinutes() < 60 -> "Il y a ${d.toMinutes()} min"
-            d.toHours() < 24 -> "Il y a ${d.toHours()} h"
-            else -> "Il y a ${d.toDays()} j"
-        }
     }
 }
