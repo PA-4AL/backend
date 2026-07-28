@@ -66,6 +66,13 @@ Les enums PostgreSQL sont générés en enums Kotlin (`database/enums/`) dont la
 Découpage classique en trois couches, un fichier par domaine (tournaments, bracket, registrations, profile, teams) :
 
 - `controller/v1/` — mapping HTTP uniquement, aucune logique. Reçoit `@AuthenticationPrincipal jwt: Jwt` et transmet `jwt.subject` / `preferred_username` / `email` au service. **Un paquet par version d'API** (`controller/v1/`, plus tard `controller/v2/`), classes suffixées `V1` : le préfixe `/api/v1` est appliqué globalement par `config/WebMvcConfig.kt`, les `@RequestMapping` déclarent des chemins nus (`/tournaments`) et la version via `version = "1+"`. Voir `docs/API-VERSIONING.md` avant d'ajouter ou de modifier une route.
+- `internal/` — endpoints **hors API publique** (aujourd'hui le callback Pub/Sub).
+  Deux contraintes, apprises en production : rester hors du paquet `controller`
+  (sinon le préfixe `/api/{version}` s'applique) **et** placer une version en 2e
+  segment (`/internal/v1/…`), car `usePathSegment(1)` valide la version sur toutes
+  les routes du DispatcherServlet. Sans jeton, Spring Security masque le problème
+  en répondant 401 avant la résolution de version : tester ces routes
+  authentifié (`CallbackAuthenticatedTests`).
 - `service/` — logique métier + **mise en forme pour le frontend**. Les writes sont `@Transactional`. Les erreurs sont levées en `ResponseStatusException(HttpStatus.X, "message français")` (pas de `@ControllerAdvice`).
 - `repository/` — jOOQ `DSLContext` injecté, requêtes typées via `database/tables/references/*`. Renvoie soit des `*Record` jOOQ, soit de petites `data class` de projection déclarées en tête du fichier (`ParticipantRow`, `RegistrationInfo`…).
 - `model/` — DTOs `data class` sérialisés tels quels en JSON, + l'objet `Display` (`BracketDtos.kt`) qui centralise couleurs, initiales et libellés de round.

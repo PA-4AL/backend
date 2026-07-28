@@ -87,7 +87,7 @@ CORS restreint à `app.cors.allowed-origins`
 | 25 | GET | `/api/v1/dashboard/activity` | JWT | 200 |
 | 26 | POST | `/api/v1/teams/import` | JWT (organizer/admin) | 200 / 400 / 413 / 503 |
 | 27 | GET | `/api/v1/jobs/{id}` | JWT | 200 / 404 |
-| — | POST | `/internal/jobs/callback` | jeton OIDC Google (Pub/Sub) | 204 / 400 / 403 |
+| — | POST | `/internal/v1/jobs/callback` | jeton OIDC Google (Pub/Sub) | 204 / 400 / 403 |
 
 ---
 
@@ -406,12 +406,17 @@ par le worker). `fileBase64` est le `.xlsx` encodé en base64.
 **200** → `JobDto`
 **404** traitement introuvable
 
-### `POST /internal/jobs/callback` — interne, hors versionnement
+### `POST /internal/v1/jobs/callback` — interne, hors versionnement
 
 Cible de l'abonnement **push** Pub/Sub qui rapporte les réponses du worker. Cet
 endpoint est délibérément **hors du paquet `controller`** : le préfixe
 `/api/{version}` ne doit pas s'y appliquer, l'appelant étant Pub/Sub et non un
 client de l'API.
+
+Le chemin porte tout de même un segment `v1` en 2e position : la résolution de
+version (`usePathSegment(1)`) s'applique à **toutes** les routes du
+DispatcherServlet, et un 2e segment illisible comme version fait répondre 400
+avant même d'atteindre le controller.
 
 Authentification par jeton OIDC signé par Google (chaîne de sécurité dédiée dans
 `SecurityConfig`), audience égale à l'URL du callback, et vérification du compte
