@@ -95,7 +95,9 @@ class SecurityConfig(@param:Value("\${app.cors.allowed-origins}") private val al
                     // liveness probes) et par le smoke test de la pipeline de
                     // déploiement — donc avant toute authentification.
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
+                    // Une ligne par version : une nouvelle version d'API ne doit pas
+                    // hériter silencieusement de l'accès public (docs/API-VERSIONING.md).
+                    .requestMatchers(HttpMethod.GET, "/api/v1/tournaments/**").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

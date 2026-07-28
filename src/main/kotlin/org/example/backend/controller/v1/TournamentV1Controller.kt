@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.controller.v1
 
 import org.example.backend.model.CreateTournamentRequest
 import org.example.backend.model.TournamentDetailDto
@@ -13,12 +13,13 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.net.URI
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import java.util.UUID
 
+/** Préfixe `/api/v1` appliqué par `WebMvcConfig` — ne pas l'écrire ici. */
 @RestController
-@RequestMapping("/api/tournaments")
-class TournamentController(private val service: TournamentService) {
+@RequestMapping("/tournaments", version = "1+")
+class TournamentV1Controller(private val service: TournamentService) {
 
     /** Consultation publique (spec : rôle Visiteur). */
     @GetMapping
@@ -40,6 +41,12 @@ class TournamentController(private val service: TournamentService) {
             pseudo = jwt.getClaimAsString("preferred_username") ?: "Organisateur",
             email = jwt.getClaimAsString("email"),
         )
-        return ResponseEntity.created(URI.create("/api/tournaments/${created.id}")).body(created)
+        // Construit depuis la requête courante : l'en-tête reste juste quelle que
+        // soit la version appelée.
+        val location = ServletUriComponentsBuilder.fromCurrentRequestUri()
+            .path("/{id}")
+            .buildAndExpand(created.id)
+            .toUri()
+        return ResponseEntity.created(location).body(created)
     }
 }

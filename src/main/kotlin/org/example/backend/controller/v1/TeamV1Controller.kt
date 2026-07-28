@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.controller.v1
 
 import org.example.backend.model.AddMemberRequest
 import org.example.backend.model.CreateTeamRequest
@@ -17,9 +17,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
+/** Préfixe `/api/v1` appliqué par `WebMvcConfig` — ne pas l'écrire ici. */
 @RestController
-@RequestMapping("/api/teams")
-class TeamController(private val service: TeamService) {
+@RequestMapping("/teams", version = "1+")
+class TeamV1Controller(private val service: TeamService) {
 
     @GetMapping("/mine")
     fun mine(@AuthenticationPrincipal jwt: Jwt): List<TeamDto> = service.mine(jwt.subject, pseudo(jwt), email(jwt))

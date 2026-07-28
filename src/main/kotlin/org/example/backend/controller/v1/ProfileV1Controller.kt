@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.controller.v1
 
 import org.example.backend.model.AddGameAccountRequest
 import org.example.backend.model.GameAccountDto
@@ -19,9 +19,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
+/** Préfixe `/api/v1` appliqué par `WebMvcConfig` — ne pas l'écrire ici. */
 @RestController
-@RequestMapping("/api/me")
-class ProfileController(private val service: ProfileService) {
+@RequestMapping("/me", version = "1+")
+class ProfileV1Controller(private val service: ProfileService) {
 
     @GetMapping
     fun me(@AuthenticationPrincipal jwt: Jwt): ProfileDto =
