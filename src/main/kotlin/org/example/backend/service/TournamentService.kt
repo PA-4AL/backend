@@ -11,8 +11,8 @@ import org.example.backend.model.TournamentSummaryDto
 import org.example.backend.repository.TournamentRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.web.server.ResponseStatusException
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -20,18 +20,14 @@ import java.util.Locale
 import java.util.UUID
 
 @Service
-class TournamentService(
-    private val repository: TournamentRepository,
-    private val bracketService: BracketService,
-) {
+class TournamentService(private val repository: TournamentRepository, private val bracketService: BracketService) {
 
     private val zone = ZoneId.of("Europe/Paris")
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
     private val dateFmt = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.FRENCH)
     private val dayFmt = DateTimeFormatter.ofPattern("d MMM", Locale.FRENCH)
 
-    fun list(): List<TournamentSummaryDto> =
-        repository.findAll().map { (t, participants) -> t.toSummary(participants) }
+    fun list(): List<TournamentSummaryDto> = repository.findAll().map { (t, participants) -> t.toSummary(participants) }
 
     fun get(id: UUID): TournamentDetailDto? {
         val t = repository.findById(id) ?: return null
@@ -125,8 +121,7 @@ class TournamentService(
         )
     }
 
-    private fun code(t: TournamentsRecord): String =
-        "#" + t.id.toString().substringBefore('-').take(6).uppercase()
+    private fun code(t: TournamentsRecord): String = "#" + t.id.toString().substringBefore('-').take(6).uppercase()
 
     private fun scheduleLabel(t: TournamentsRecord): String {
         val start = t.startAt?.atZoneSameInstant(zone) ?: return "à planifier"
@@ -150,5 +145,4 @@ class TournamentService(
         PhaseType.swiss -> "Système suisse"
         else -> "Élimination simple"
     }
-
 }

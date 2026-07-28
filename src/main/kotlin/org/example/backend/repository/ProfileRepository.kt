@@ -30,11 +30,10 @@ data class UserInfoRow(val pseudo: String, val avatarUrl: String?)
 @Repository
 class ProfileRepository(private val dsl: DSLContext) {
 
-    fun userInfo(userId: UUID): UserInfoRow? =
-        dsl.select(USERS.PSEUDO, USERS.AVATAR_URL)
-            .from(USERS)
-            .where(USERS.ID.eq(userId))
-            .fetchOne { UserInfoRow(it.get(USERS.PSEUDO)!!, it.get(USERS.AVATAR_URL)) }
+    fun userInfo(userId: UUID): UserInfoRow? = dsl.select(USERS.PSEUDO, USERS.AVATAR_URL)
+        .from(USERS)
+        .where(USERS.ID.eq(userId))
+        .fetchOne { UserInfoRow(it.get(USERS.PSEUDO)!!, it.get(USERS.AVATAR_URL)) }
 
     fun updateProfile(userId: UUID, pseudo: String?, avatarUrl: String?) {
         var q = dsl.update(USERS).set(USERS.ID, userId) // point de départ neutre
@@ -68,15 +67,18 @@ class ProfileRepository(private val dsl: DSLContext) {
     }
 
     /** Supprime uniquement si le compte appartient bien à l'utilisateur. */
-    fun deleteGameAccount(userId: UUID, accountId: UUID): Boolean =
-        dsl.deleteFrom(GAME_ACCOUNTS)
-            .where(GAME_ACCOUNTS.ID.eq(accountId).and(GAME_ACCOUNTS.USER_ID.eq(userId)))
-            .execute() == 1
+    fun deleteGameAccount(userId: UUID, accountId: UUID): Boolean = dsl.deleteFrom(GAME_ACCOUNTS)
+        .where(GAME_ACCOUNTS.ID.eq(accountId).and(GAME_ACCOUNTS.USER_ID.eq(userId)))
+        .execute() == 1
 
     /** Historique des tournois de l'utilisateur (inscriptions solo) avec ses matchs. */
     fun history(userId: UUID): List<HistoryRow> {
         val registrations = dsl.select(
-            REGISTRATIONS.ID, TOURNAMENTS.ID, TOURNAMENTS.NAME, TOURNAMENTS.STATUS, PHASES.GAME,
+            REGISTRATIONS.ID,
+            TOURNAMENTS.ID,
+            TOURNAMENTS.NAME,
+            TOURNAMENTS.STATUS,
+            PHASES.GAME,
         )
             .from(REGISTRATIONS)
             .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))

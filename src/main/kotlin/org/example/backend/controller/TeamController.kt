@@ -22,17 +22,13 @@ import java.util.UUID
 class TeamController(private val service: TeamService) {
 
     @GetMapping("/mine")
-    fun mine(@AuthenticationPrincipal jwt: Jwt): List<TeamDto> =
-        service.mine(jwt.subject, pseudo(jwt), email(jwt))
+    fun mine(@AuthenticationPrincipal jwt: Jwt): List<TeamDto> = service.mine(jwt.subject, pseudo(jwt), email(jwt))
 
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): TeamDto = service.get(id)
 
     @PostMapping
-    fun create(
-        @AuthenticationPrincipal jwt: Jwt,
-        @RequestBody req: CreateTeamRequest,
-    ): ResponseEntity<TeamDto> =
+    fun create(@AuthenticationPrincipal jwt: Jwt, @RequestBody req: CreateTeamRequest): ResponseEntity<TeamDto> =
         ResponseEntity.status(HttpStatus.CREATED)
             .body(service.create(req, jwt.subject, pseudo(jwt), email(jwt)))
 

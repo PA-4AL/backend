@@ -13,54 +13,49 @@ data class SlotDto(
 )
 
 data class BracketMatchDto(
-    val id: String,          // code d'affichage : QF1, SF2, F1…
-    val matchId: String,     // UUID réel (saisie de score)
-    val status: String,      // done | live | scheduled | pending
+    val id: String, // code d'affichage : QF1, SF2, F1…
+    val matchId: String, // UUID réel (saisie de score)
+    val status: String, // done | live | scheduled | pending
     val time: String? = null,
     val a: SlotDto,
     val b: SlotDto,
 )
 
-data class BracketRoundDto(
-    val label: String,
-    val matches: List<BracketMatchDto>,
-)
+data class BracketRoundDto(val label: String, val matches: List<BracketMatchDto>)
 
-data class BracketDto(
-    val rounds: List<BracketRoundDto>,
-    val champion: String? = null,
-)
+data class BracketDto(val rounds: List<BracketRoundDto>, val champion: String? = null)
 
-data class ScoreRequest(
-    val scoreA: Int,
-    val scoreB: Int,
-)
+data class ScoreRequest(val scoreA: Int, val scoreB: Int)
 
 /** Helpers d'affichage partagés (mêmes conventions que le frontend). */
 object Display {
     val palette = listOf(
-        "#1437D9", "#FF5C28", "#00A854", "#7c3aed",
-        "#0891b2", "#db2777", "#ca8a04", "#16a34a",
+        "#1437D9",
+        "#FF5C28",
+        "#00A854",
+        "#7c3aed",
+        "#0891b2",
+        "#db2777",
+        "#ca8a04",
+        "#16a34a",
     )
 
     fun colorFor(index: Int): String = palette[index % palette.size]
 
-    fun initials(name: String): String =
-        name.split(Regex("[\\s._-]+"))
-            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-            .take(2)
-            .joinToString("")
-            .ifEmpty { "?" }
+    fun initials(name: String): String = name.split(Regex("[\\s._-]+"))
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .take(2)
+        .joinToString("")
+        .ifEmpty { "?" }
 
     /** Libellé + code court d'un round selon sa distance à la finale. */
-    fun roundLabel(round: Int, totalRounds: Int): Pair<String, String> =
-        when (totalRounds - round) {
-            0 -> "Finale" to "F"
-            1 -> "Demi-finales" to "SF"
-            2 -> "Quarts de finale" to "QF"
-            else -> {
-                val participants = 1 shl (totalRounds - round + 1)
-                "1/${participants / 2} de finale" to "R$participants"
-            }
+    fun roundLabel(round: Int, totalRounds: Int): Pair<String, String> = when (totalRounds - round) {
+        0 -> "Finale" to "F"
+        1 -> "Demi-finales" to "SF"
+        2 -> "Quarts de finale" to "QF"
+        else -> {
+            val participants = 1 shl (totalRounds - round + 1)
+            "1/${participants / 2} de finale" to "R$participants"
         }
+    }
 }

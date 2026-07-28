@@ -13,10 +13,7 @@ import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
-class ProfileService(
-    private val repo: ProfileRepository,
-    private val registrations: RegistrationRepository,
-) {
+class ProfileService(private val repo: ProfileRepository, private val registrations: RegistrationRepository) {
 
     fun profile(keycloakId: String, pseudo: String, email: String?): ProfileDto {
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
@@ -58,7 +55,13 @@ class ProfileService(
         )
     }
 
-    fun updateProfile(keycloakId: String, pseudo: String, email: String?, newPseudo: String?, avatarUrl: String?): ProfileDto {
+    fun updateProfile(
+        keycloakId: String,
+        pseudo: String,
+        email: String?,
+        newPseudo: String?,
+        avatarUrl: String?,
+    ): ProfileDto {
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
         val cleanPseudo = newPseudo?.trim()
         if (cleanPseudo != null && cleanPseudo.isEmpty()) {
@@ -71,7 +74,13 @@ class ProfileService(
         return profile(keycloakId, pseudo, email)
     }
 
-    fun addGameAccount(keycloakId: String, pseudo: String, email: String?, game: String, identifier: String): GameAccountDto {
+    fun addGameAccount(
+        keycloakId: String,
+        pseudo: String,
+        email: String?,
+        game: String,
+        identifier: String,
+    ): GameAccountDto {
         if (game.isBlank() || identifier.isBlank()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Jeu et identifiant sont obligatoires")
         }

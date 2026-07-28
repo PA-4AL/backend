@@ -15,11 +15,7 @@ import org.jooq.DSLContext
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
-data class RegistrationInfo(
-    val registrationId: UUID,
-    val displayName: String,
-    val seed: Int?,
-)
+data class RegistrationInfo(val registrationId: UUID, val displayName: String, val seed: Int?)
 
 @Repository
 class BracketRepository(private val dsl: DSLContext) {
@@ -28,13 +24,7 @@ class BracketRepository(private val dsl: DSLContext) {
         dsl.deleteFrom(MATCHES).where(MATCHES.PHASE_ID.eq(phaseId)).execute()
     }
 
-    fun insertMatch(
-        phaseId: UUID,
-        round: Int,
-        position: Int,
-        bestOf: Int,
-        nextMatchId: UUID?,
-    ): UUID =
+    fun insertMatch(phaseId: UUID, round: Int, position: Int, bestOf: Int, nextMatchId: UUID?): UUID =
         dsl.insertInto(MATCHES)
             .set(MATCHES.PHASE_ID, phaseId)
             .set(MATCHES.ROUND, round)
@@ -71,14 +61,12 @@ class BracketRepository(private val dsl: DSLContext) {
             .execute()
     }
 
-    fun findMatch(id: UUID): MatchesRecord? =
-        dsl.selectFrom(MATCHES).where(MATCHES.ID.eq(id)).fetchOne()
+    fun findMatch(id: UUID): MatchesRecord? = dsl.selectFrom(MATCHES).where(MATCHES.ID.eq(id)).fetchOne()
 
-    fun findPhaseMatches(phaseId: UUID): List<MatchesRecord> =
-        dsl.selectFrom(MATCHES)
-            .where(MATCHES.PHASE_ID.eq(phaseId))
-            .orderBy(MATCHES.ROUND.asc(), MATCHES.POSITION.asc())
-            .fetch()
+    fun findPhaseMatches(phaseId: UUID): List<MatchesRecord> = dsl.selectFrom(MATCHES)
+        .where(MATCHES.PHASE_ID.eq(phaseId))
+        .orderBy(MATCHES.ROUND.asc(), MATCHES.POSITION.asc())
+        .fetch()
 
     /** Score agrégé (manches gagnées) par match. */
     fun findScores(phaseId: UUID): Map<UUID, Pair<Int, Int>> =
@@ -131,11 +119,10 @@ class BracketRepository(private val dsl: DSLContext) {
             .execute()
     }
 
-    fun findPhaseTournamentId(phaseId: UUID): UUID? =
-        dsl.select(PHASES.TOURNAMENT_ID)
-            .from(PHASES)
-            .where(PHASES.ID.eq(phaseId))
-            .fetchOne(PHASES.TOURNAMENT_ID)
+    fun findPhaseTournamentId(phaseId: UUID): UUID? = dsl.select(PHASES.TOURNAMENT_ID)
+        .from(PHASES)
+        .where(PHASES.ID.eq(phaseId))
+        .fetchOne(PHASES.TOURNAMENT_ID)
 
     fun setTournamentStatus(tournamentId: UUID, status: TournamentStatus) {
         dsl.update(TOURNAMENTS)

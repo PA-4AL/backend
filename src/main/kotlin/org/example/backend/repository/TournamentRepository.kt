@@ -20,11 +20,7 @@ import org.jooq.impl.DSL
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
-data class ParticipantRow(
-    val registrationId: UUID,
-    val displayName: String,
-    val seed: Int?,
-)
+data class ParticipantRow(val registrationId: UUID, val displayName: String, val seed: Int?)
 
 @Repository
 class TournamentRepository(private val dsl: DSLContext) {
@@ -45,28 +41,24 @@ class TournamentRepository(private val dsl: DSLContext) {
             .fetch { r -> r.into(TOURNAMENTS) to (r.get("participants", Int::class.java) ?: 0) }
     }
 
-    fun findById(id: UUID): TournamentsRecord? =
-        dsl.selectFrom(TOURNAMENTS).where(TOURNAMENTS.ID.eq(id)).fetchOne()
+    fun findById(id: UUID): TournamentsRecord? = dsl.selectFrom(TOURNAMENTS).where(TOURNAMENTS.ID.eq(id)).fetchOne()
 
-    fun countParticipants(tournamentId: UUID): Int =
-        dsl.fetchCount(
-            REGISTRATIONS,
-            REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId)
-                .and(REGISTRATIONS.STATUS.ne(RegistrationStatus.withdrawn)),
-        )
+    fun countParticipants(tournamentId: UUID): Int = dsl.fetchCount(
+        REGISTRATIONS,
+        REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId)
+            .and(REGISTRATIONS.STATUS.ne(RegistrationStatus.withdrawn)),
+    )
 
-    fun findFirstPhase(tournamentId: UUID): PhasesRecord? =
-        dsl.selectFrom(PHASES)
-            .where(PHASES.TOURNAMENT_ID.eq(tournamentId))
-            .orderBy(PHASES.POSITION.asc())
-            .limit(1)
-            .fetchOne()
+    fun findFirstPhase(tournamentId: UUID): PhasesRecord? = dsl.selectFrom(PHASES)
+        .where(PHASES.TOURNAMENT_ID.eq(tournamentId))
+        .orderBy(PHASES.POSITION.asc())
+        .limit(1)
+        .fetchOne()
 
-    fun findPhases(tournamentId: UUID): List<PhasesRecord> =
-        dsl.selectFrom(PHASES)
-            .where(PHASES.TOURNAMENT_ID.eq(tournamentId))
-            .orderBy(PHASES.POSITION.asc())
-            .fetch()
+    fun findPhases(tournamentId: UUID): List<PhasesRecord> = dsl.selectFrom(PHASES)
+        .where(PHASES.TOURNAMENT_ID.eq(tournamentId))
+        .orderBy(PHASES.POSITION.asc())
+        .fetch()
 
     fun updatePhaseType(phaseId: UUID, type: PhaseType) {
         dsl.update(PHASES)
@@ -75,14 +67,13 @@ class TournamentRepository(private val dsl: DSLContext) {
             .execute()
     }
 
-    fun findOwnerPseudo(tournamentId: UUID): String? =
-        dsl.select(USERS.PSEUDO)
-            .from(TOURNAMENT_ORGANIZERS)
-            .join(USERS).on(USERS.ID.eq(TOURNAMENT_ORGANIZERS.USER_ID))
-            .where(TOURNAMENT_ORGANIZERS.TOURNAMENT_ID.eq(tournamentId))
-            .orderBy(TOURNAMENT_ORGANIZERS.ROLE.asc()) // owner avant co_organizer
-            .limit(1)
-            .fetchOne(USERS.PSEUDO)
+    fun findOwnerPseudo(tournamentId: UUID): String? = dsl.select(USERS.PSEUDO)
+        .from(TOURNAMENT_ORGANIZERS)
+        .join(USERS).on(USERS.ID.eq(TOURNAMENT_ORGANIZERS.USER_ID))
+        .where(TOURNAMENT_ORGANIZERS.TOURNAMENT_ID.eq(tournamentId))
+        .orderBy(TOURNAMENT_ORGANIZERS.ROLE.asc()) // owner avant co_organizer
+        .limit(1)
+        .fetchOne(USERS.PSEUDO)
 
     /** Inscriptions actives avec le nom affichable (équipe ou joueur solo). */
     fun findActiveParticipants(tournamentId: UUID): List<ParticipantRow> =
@@ -124,7 +115,7 @@ class TournamentRepository(private val dsl: DSLContext) {
     fun create(
         name: String,
         description: String?,
-        games: List<Pair<String, Int>>,   // (jeu, best-of)
+        games: List<Pair<String, Int>>, // (jeu, best-of)
         format: PhaseType,
         teamSize: Int,
         maxParticipants: Int?,

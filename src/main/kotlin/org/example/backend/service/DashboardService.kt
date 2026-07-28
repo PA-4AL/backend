@@ -22,7 +22,9 @@ class DashboardService(private val dsl: DSLContext) {
         val active = dsl.fetchCount(
             TOURNAMENTS,
             TOURNAMENTS.STATUS.`in`(
-                TournamentStatus.registration, TournamentStatus.check_in, TournamentStatus.ongoing,
+                TournamentStatus.registration,
+                TournamentStatus.check_in,
+                TournamentStatus.ongoing,
             ),
         )
         val createdThisWeek = dsl.fetchCount(
@@ -58,8 +60,11 @@ class DashboardService(private val dsl: DSLContext) {
         data class Event(val id: String, val kind: String, val html: String, val at: OffsetDateTime)
 
         val registrations = dsl.select(
-            REGISTRATIONS.ID, REGISTRATIONS.CREATED_AT,
-            TEAMS.NAME, USERS.PSEUDO, TOURNAMENTS.NAME,
+            REGISTRATIONS.ID,
+            REGISTRATIONS.CREATED_AT,
+            TEAMS.NAME,
+            USERS.PSEUDO,
+            TOURNAMENTS.NAME,
         )
             .from(REGISTRATIONS)
             .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))
@@ -86,8 +91,11 @@ class DashboardService(private val dsl: DSLContext) {
                 Event(
                     id = "trn-${r.get(TOURNAMENTS.ID)}",
                     kind = if (finished) "finished" else "live",
-                    html = if (finished) "<b>${r.get(TOURNAMENTS.NAME)}</b> est terminé."
-                    else "Tournoi <b>${r.get(TOURNAMENTS.NAME)}</b> créé.",
+                    html = if (finished) {
+                        "<b>${r.get(TOURNAMENTS.NAME)}</b> est terminé."
+                    } else {
+                        "Tournoi <b>${r.get(TOURNAMENTS.NAME)}</b> créé."
+                    },
                     at = r.get(TOURNAMENTS.CREATED_AT)!!,
                 )
             }

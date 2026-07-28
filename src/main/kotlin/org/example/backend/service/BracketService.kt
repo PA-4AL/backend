@@ -22,10 +22,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
-class BracketService(
-    private val tournaments: TournamentRepository,
-    private val repo: BracketRepository,
-) {
+class BracketService(private val tournaments: TournamentRepository, private val repo: BracketRepository) {
 
     private val zone = ZoneId.of("Europe/Paris")
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
@@ -55,7 +52,9 @@ class BracketService(
 
         // Re-génération possible tant que le tournoi n'a pas démarré (spec §4.2)
         if (tournament.status !in listOf(
-                TournamentStatus.draft, TournamentStatus.registration, TournamentStatus.check_in,
+                TournamentStatus.draft,
+                TournamentStatus.registration,
+                TournamentStatus.check_in,
             )
         ) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Le tournoi a déjà démarré")
@@ -122,7 +121,13 @@ class BracketService(
             repo.setParticipants(matchId, regA, regB)
 
             // Bye : un seul participant → qualification automatique (spec §4.2)
-            val winner = if (regA != null && regB == null) regA else if (regA == null && regB != null) regB else null
+            val winner = if (regA != null && regB == null) {
+                regA
+            } else if (regA == null && regB != null) {
+                regB
+            } else {
+                null
+            }
             if (winner != null) {
                 repo.setResult(matchId, winner, MatchStatus.finished)
                 val match = firstRound.first { it.id == matchId }

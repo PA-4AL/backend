@@ -23,18 +23,16 @@ data class RegistrationRow(
 @Repository
 class RegistrationRepository(private val dsl: DSLContext) {
 
-    fun listByTournament(tournamentId: UUID): List<RegistrationRow> =
-        baseSelect()
-            .where(REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId))
-            .orderBy(REGISTRATIONS.SEED.asc().nullsLast(), REGISTRATIONS.CREATED_AT.asc())
-            .fetch(::toRow)
+    fun listByTournament(tournamentId: UUID): List<RegistrationRow> = baseSelect()
+        .where(REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId))
+        .orderBy(REGISTRATIONS.SEED.asc().nullsLast(), REGISTRATIONS.CREATED_AT.asc())
+        .fetch(::toRow)
 
     /** Inscriptions à traiter par un organisateur (en attente ou liste d'attente). */
-    fun listPending(): List<RegistrationRow> =
-        baseSelect()
-            .where(REGISTRATIONS.STATUS.`in`(RegistrationStatus.pending, RegistrationStatus.waitlist))
-            .orderBy(REGISTRATIONS.CREATED_AT.asc())
-            .fetch(::toRow)
+    fun listPending(): List<RegistrationRow> = baseSelect()
+        .where(REGISTRATIONS.STATUS.`in`(RegistrationStatus.pending, RegistrationStatus.waitlist))
+        .orderBy(REGISTRATIONS.CREATED_AT.asc())
+        .fetch(::toRow)
 
     /**
      * Retrouve ou crée l'utilisateur plateforme lié au compte Keycloak.
@@ -72,87 +70,82 @@ class RegistrationRepository(private val dsl: DSLContext) {
     }
 
     /** Joueur "fantôme" (spec §6.1.3) : créé sans compte Keycloak, rattachable plus tard. */
-    fun insertGhostUser(pseudo: String): UUID =
-        dsl.insertInto(USERS)
-            .set(USERS.PSEUDO, pseudo)
-            .returning(USERS.ID)
-            .fetchOne()!!
-            .get(USERS.ID)!!
+    fun insertGhostUser(pseudo: String): UUID = dsl.insertInto(USERS)
+        .set(USERS.PSEUDO, pseudo)
+        .returning(USERS.ID)
+        .fetchOne()!!
+        .get(USERS.ID)!!
 
     /** Équipe "fantôme" : ajoutée par l'organisateur sans roster ni capitaine. */
-    fun insertGhostTeam(name: String): UUID =
-        dsl.insertInto(TEAMS)
-            .set(TEAMS.NAME, name)
-            .returning(TEAMS.ID)
-            .fetchOne()!!
-            .get(TEAMS.ID)!!
+    fun insertGhostTeam(name: String): UUID = dsl.insertInto(TEAMS)
+        .set(TEAMS.NAME, name)
+        .returning(TEAMS.ID)
+        .fetchOne()!!
+        .get(TEAMS.ID)!!
 
-    fun existsForTeam(tournamentId: UUID, teamId: UUID): Boolean =
-        dsl.fetchExists(
-            REGISTRATIONS,
-            REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.TEAM_ID.eq(teamId)),
-        )
+    fun existsForTeam(tournamentId: UUID, teamId: UUID): Boolean = dsl.fetchExists(
+        REGISTRATIONS,
+        REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.TEAM_ID.eq(teamId)),
+    )
 
-    fun insertTeam(tournamentId: UUID, teamId: UUID, status: RegistrationStatus): UUID =
-        dsl.insertInto(REGISTRATIONS)
-            .set(REGISTRATIONS.TOURNAMENT_ID, tournamentId)
-            .set(REGISTRATIONS.TEAM_ID, teamId)
-            .set(REGISTRATIONS.STATUS, status)
-            .returning(REGISTRATIONS.ID)
-            .fetchOne()!!
-            .get(REGISTRATIONS.ID)!!
+    fun insertTeam(tournamentId: UUID, teamId: UUID, status: RegistrationStatus): UUID = dsl.insertInto(REGISTRATIONS)
+        .set(REGISTRATIONS.TOURNAMENT_ID, tournamentId)
+        .set(REGISTRATIONS.TEAM_ID, teamId)
+        .set(REGISTRATIONS.STATUS, status)
+        .returning(REGISTRATIONS.ID)
+        .fetchOne()!!
+        .get(REGISTRATIONS.ID)!!
 
-    fun existsForUser(tournamentId: UUID, userId: UUID): Boolean =
-        dsl.fetchExists(
-            REGISTRATIONS,
-            REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.USER_ID.eq(userId)),
-        )
+    fun existsForUser(tournamentId: UUID, userId: UUID): Boolean = dsl.fetchExists(
+        REGISTRATIONS,
+        REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.USER_ID.eq(userId)),
+    )
 
-    fun insertSolo(tournamentId: UUID, userId: UUID, status: RegistrationStatus): UUID =
-        dsl.insertInto(REGISTRATIONS)
-            .set(REGISTRATIONS.TOURNAMENT_ID, tournamentId)
-            .set(REGISTRATIONS.USER_ID, userId)
-            .set(REGISTRATIONS.STATUS, status)
-            .returning(REGISTRATIONS.ID)
-            .fetchOne()!!
-            .get(REGISTRATIONS.ID)!!
+    fun insertSolo(tournamentId: UUID, userId: UUID, status: RegistrationStatus): UUID = dsl.insertInto(REGISTRATIONS)
+        .set(REGISTRATIONS.TOURNAMENT_ID, tournamentId)
+        .set(REGISTRATIONS.USER_ID, userId)
+        .set(REGISTRATIONS.STATUS, status)
+        .returning(REGISTRATIONS.ID)
+        .fetchOne()!!
+        .get(REGISTRATIONS.ID)!!
 
-    fun findStatus(registrationId: UUID): RegistrationStatus? =
-        dsl.select(REGISTRATIONS.STATUS)
-            .from(REGISTRATIONS)
-            .where(REGISTRATIONS.ID.eq(registrationId))
-            .fetchOne(REGISTRATIONS.STATUS)
+    fun findStatus(registrationId: UUID): RegistrationStatus? = dsl.select(REGISTRATIONS.STATUS)
+        .from(REGISTRATIONS)
+        .where(REGISTRATIONS.ID.eq(registrationId))
+        .fetchOne(REGISTRATIONS.STATUS)
 
-    fun updateSeed(registrationId: UUID, seed: Int?): Boolean =
-        dsl.update(REGISTRATIONS)
-            .set(REGISTRATIONS.SEED, seed)
-            .where(REGISTRATIONS.ID.eq(registrationId))
-            .execute() == 1
+    fun updateSeed(registrationId: UUID, seed: Int?): Boolean = dsl.update(REGISTRATIONS)
+        .set(REGISTRATIONS.SEED, seed)
+        .where(REGISTRATIONS.ID.eq(registrationId))
+        .execute() == 1
 
-    fun updateStatus(registrationId: UUID, status: RegistrationStatus): Boolean =
-        dsl.update(REGISTRATIONS)
-            .set(REGISTRATIONS.STATUS, status)
-            .where(REGISTRATIONS.ID.eq(registrationId))
-            .execute() == 1
+    fun updateStatus(registrationId: UUID, status: RegistrationStatus): Boolean = dsl.update(REGISTRATIONS)
+        .set(REGISTRATIONS.STATUS, status)
+        .where(REGISTRATIONS.ID.eq(registrationId))
+        .execute() == 1
 
-    private fun baseSelect() =
-        dsl.select(
-            REGISTRATIONS.ID, REGISTRATIONS.STATUS, REGISTRATIONS.SEED, REGISTRATIONS.CREATED_AT,
-            REGISTRATIONS.TOURNAMENT_ID, TOURNAMENTS.NAME, TEAMS.NAME, USERS.PSEUDO,
-        )
-            .from(REGISTRATIONS)
-            .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))
-            .leftJoin(TEAMS).on(TEAMS.ID.eq(REGISTRATIONS.TEAM_ID))
-            .leftJoin(USERS).on(USERS.ID.eq(REGISTRATIONS.USER_ID))
+    private fun baseSelect() = dsl.select(
+        REGISTRATIONS.ID,
+        REGISTRATIONS.STATUS,
+        REGISTRATIONS.SEED,
+        REGISTRATIONS.CREATED_AT,
+        REGISTRATIONS.TOURNAMENT_ID,
+        TOURNAMENTS.NAME,
+        TEAMS.NAME,
+        USERS.PSEUDO,
+    )
+        .from(REGISTRATIONS)
+        .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))
+        .leftJoin(TEAMS).on(TEAMS.ID.eq(REGISTRATIONS.TEAM_ID))
+        .leftJoin(USERS).on(USERS.ID.eq(REGISTRATIONS.USER_ID))
 
-    private fun toRow(r: org.jooq.Record): RegistrationRow =
-        RegistrationRow(
-            id = r.get(REGISTRATIONS.ID)!!,
-            name = r.get(TEAMS.NAME) ?: r.get(USERS.PSEUDO) ?: "?",
-            status = r.get(REGISTRATIONS.STATUS)!!,
-            seed = r.get(REGISTRATIONS.SEED),
-            createdAt = r.get(REGISTRATIONS.CREATED_AT)!!,
-            tournamentId = r.get(REGISTRATIONS.TOURNAMENT_ID)!!,
-            tournamentName = r.get(TOURNAMENTS.NAME)!!,
-        )
+    private fun toRow(r: org.jooq.Record): RegistrationRow = RegistrationRow(
+        id = r.get(REGISTRATIONS.ID)!!,
+        name = r.get(TEAMS.NAME) ?: r.get(USERS.PSEUDO) ?: "?",
+        status = r.get(REGISTRATIONS.STATUS)!!,
+        seed = r.get(REGISTRATIONS.SEED),
+        createdAt = r.get(REGISTRATIONS.CREATED_AT)!!,
+        tournamentId = r.get(REGISTRATIONS.TOURNAMENT_ID)!!,
+        tournamentName = r.get(TOURNAMENTS.NAME)!!,
+    )
 }

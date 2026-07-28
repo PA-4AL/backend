@@ -3,7 +3,6 @@ package org.example.backend.controller
 import org.example.backend.model.ParticipantDto
 import org.example.backend.model.PendingRegistrationDto
 import org.example.backend.service.RegistrationService
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -11,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
@@ -27,10 +27,7 @@ class RegistrationController(private val service: RegistrationService) {
 
     /** Inscription solo de l'utilisateur connecté. */
     @PostMapping("/api/tournaments/{id}/register")
-    fun register(
-        @PathVariable id: UUID,
-        @AuthenticationPrincipal jwt: Jwt,
-    ): ResponseEntity<ParticipantDto> {
+    fun register(@PathVariable id: UUID, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<ParticipantDto> {
         val created = service.register(
             tournamentId = id,
             keycloakId = jwt.subject,
@@ -59,10 +56,7 @@ class RegistrationController(private val service: RegistrationService) {
 
     /** Ajout manuel d'un participant par l'organisateur (joueur sans compte). */
     @PostMapping("/api/tournaments/{id}/participants")
-    fun addManual(
-        @PathVariable id: UUID,
-        @RequestBody body: AddParticipantRequest,
-    ): ResponseEntity<ParticipantDto> =
+    fun addManual(@PathVariable id: UUID, @RequestBody body: AddParticipantRequest): ResponseEntity<ParticipantDto> =
         ResponseEntity.status(HttpStatus.CREATED).body(service.addManual(id, body.name))
 
     /** Inscriptions à traiter (organisateur). */
