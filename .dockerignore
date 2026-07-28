@@ -1,0 +1,13 @@
+# Contexte de build : seuls le wrapper, les scripts Gradle et src/ sont utiles.
+build
+.gradle
+.kotlin
+.git
+.gitignore
+.gitattributes
+.idea
+.claude
+docs
+*.md
+db.sql
+docker-compose.dev.yml
