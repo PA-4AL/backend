@@ -1,7 +1,10 @@
 HELP.md
 .gradle
 build/
-gradle/wrapper/gradle-wrapper.jar
+# Le jar du wrapper DOIT être versionné : sans lui, aucun checkout propre ne peut
+# construire le projet (`./gradlew` échoue avec « Unable to access jarfile »).
+# C'est la recommandation de Gradle, et c'est indispensable en intégration continue.
+#gradle/wrapper/gradle-wrapper.jar
 **/src/main/**/build/
 **/src/test/**/build/
 

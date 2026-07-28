@@ -4,6 +4,8 @@ plugins {
 	id 'org.springframework.boot' version '4.0.2'
 	id 'io.spring.dependency-management' version '1.1.7'
     id "org.jooq.jooq-codegen-gradle" version "3.19.29"
+    // Linter/formateur Kotlin exécuté par la CI (job `lint`).
+    id "org.jlleitschuh.gradle.ktlint" version "14.2.0"
 }
 
 group = 'org.example'
@@ -23,6 +25,7 @@ repositories {
 }
 
 dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-jooq'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -30,12 +33,17 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'org.postgresql:postgresql'
+	// Jetons d'accès depuis les identifiants par défaut de l'environnement (ADC),
+	// pour publier sur Pub/Sub via son API REST — évite d'embarquer toute la pile
+	// gRPC du client google-cloud-pubsub pour un simple POST.
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.48.0'
 	implementation 'tools.jackson.module:jackson-module-kotlin'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	testImplementation 'org.springframework.boot:spring-boot-starter-jooq-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
+	testImplementation 'io.mockk:mockk:1.14.3'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	jooqCodegen 'org.postgresql:postgresql'
 }
@@ -48,6 +56,14 @@ kotlin {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+ktlint {
+	// Le code jOOQ est généré (src/main/kotlin/.../database) : il n'a pas à
+	// respecter le style du projet et ne doit jamais être reformaté.
+	filter {
+		exclude { element -> element.file.path.contains("/backend/database/") }
+	}
 }
 
 jooq {

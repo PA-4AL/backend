@@ -37,19 +37,19 @@ data class RecentTournamentRow(
 @Repository
 class DashboardRepository(private val dsl: DSLContext) {
 
-    fun countActiveTournaments(): Int =
-        dsl.fetchCount(
-            TOURNAMENTS,
-            TOURNAMENTS.STATUS.`in`(
-                TournamentStatus.registration, TournamentStatus.check_in, TournamentStatus.ongoing,
-            ),
-        )
+    fun countActiveTournaments(): Int = dsl.fetchCount(
+        TOURNAMENTS,
+        TOURNAMENTS.STATUS.`in`(
+            TournamentStatus.registration,
+            TournamentStatus.check_in,
+            TournamentStatus.ongoing,
+        ),
+    )
 
     fun countTournamentsCreatedSince(since: OffsetDateTime): Int =
         dsl.fetchCount(TOURNAMENTS, TOURNAMENTS.CREATED_AT.gt(since))
 
-    fun countLiveMatches(): Int =
-        dsl.fetchCount(MATCHES, MATCHES.STATUS.eq(MatchStatus.ongoing))
+    fun countLiveMatches(): Int = dsl.fetchCount(MATCHES, MATCHES.STATUS.eq(MatchStatus.ongoing))
 
     /** Inscriptions hors désistements. */
     fun countActiveRegistrations(): Int =
@@ -61,25 +61,27 @@ class DashboardRepository(private val dsl: DSLContext) {
     fun countPendingRegistrations(): Int =
         dsl.fetchCount(REGISTRATIONS, REGISTRATIONS.STATUS.eq(RegistrationStatus.pending))
 
-    fun recentRegistrations(limit: Int): List<RecentRegistrationRow> =
-        dsl.select(
-            REGISTRATIONS.ID, REGISTRATIONS.CREATED_AT,
-            TEAMS.NAME, USERS.PSEUDO, TOURNAMENTS.NAME,
-        )
-            .from(REGISTRATIONS)
-            .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))
-            .leftJoin(TEAMS).on(TEAMS.ID.eq(REGISTRATIONS.TEAM_ID))
-            .leftJoin(USERS).on(USERS.ID.eq(REGISTRATIONS.USER_ID))
-            .orderBy(REGISTRATIONS.CREATED_AT.desc())
-            .limit(limit)
-            .fetch { r ->
-                RecentRegistrationRow(
-                    id = r.get(REGISTRATIONS.ID)!!,
-                    participantName = r.get(TEAMS.NAME) ?: r.get(USERS.PSEUDO),
-                    tournamentName = r.get(TOURNAMENTS.NAME)!!,
-                    createdAt = r.get(REGISTRATIONS.CREATED_AT)!!,
-                )
-            }
+    fun recentRegistrations(limit: Int): List<RecentRegistrationRow> = dsl.select(
+        REGISTRATIONS.ID,
+        REGISTRATIONS.CREATED_AT,
+        TEAMS.NAME,
+        USERS.PSEUDO,
+        TOURNAMENTS.NAME,
+    )
+        .from(REGISTRATIONS)
+        .join(TOURNAMENTS).on(TOURNAMENTS.ID.eq(REGISTRATIONS.TOURNAMENT_ID))
+        .leftJoin(TEAMS).on(TEAMS.ID.eq(REGISTRATIONS.TEAM_ID))
+        .leftJoin(USERS).on(USERS.ID.eq(REGISTRATIONS.USER_ID))
+        .orderBy(REGISTRATIONS.CREATED_AT.desc())
+        .limit(limit)
+        .fetch { r ->
+            RecentRegistrationRow(
+                id = r.get(REGISTRATIONS.ID)!!,
+                participantName = r.get(TEAMS.NAME) ?: r.get(USERS.PSEUDO),
+                tournamentName = r.get(TOURNAMENTS.NAME)!!,
+                createdAt = r.get(REGISTRATIONS.CREATED_AT)!!,
+            )
+        }
 
     fun recentTournaments(limit: Int): List<RecentTournamentRow> =
         dsl.select(TOURNAMENTS.ID, TOURNAMENTS.NAME, TOURNAMENTS.STATUS, TOURNAMENTS.CREATED_AT)

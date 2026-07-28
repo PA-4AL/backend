@@ -14,19 +14,15 @@ import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
-class TeamService(
-    private val repo: TeamRepository,
-    private val registrations: RegistrationRepository,
-) {
+class TeamService(private val repo: TeamRepository, private val registrations: RegistrationRepository) {
 
     fun mine(keycloakId: String, pseudo: String, email: String?): List<TeamDto> {
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
         return repo.listMine(userId).map { toDto(it.id) }
     }
 
-    fun get(teamId: UUID): TeamDto =
-        repo.find(teamId)?.let { toDto(it.id) }
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Équipe introuvable")
+    fun get(teamId: UUID): TeamDto = repo.find(teamId)?.let { toDto(it.id) }
+        ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Équipe introuvable")
 
     @Transactional
     fun create(req: CreateTeamRequest, keycloakId: String, pseudo: String, email: String?): TeamDto {

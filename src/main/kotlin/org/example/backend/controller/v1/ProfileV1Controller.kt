@@ -30,30 +30,22 @@ class ProfileV1Controller(private val service: ProfileService) {
 
     /** Mise à jour du pseudo et/ou de la photo de profil. */
     @PatchMapping
-    fun update(
-        @AuthenticationPrincipal jwt: Jwt,
-        @RequestBody body: UpdateProfileRequest,
-    ): ProfileDto =
+    fun update(@AuthenticationPrincipal jwt: Jwt, @RequestBody body: UpdateProfileRequest): ProfileDto =
         service.updateProfile(jwt.subject, pseudo(jwt), jwt.getClaimAsString("email"), body.pseudo, body.avatarUrl)
 
     @PostMapping("/game-accounts")
     fun addGameAccount(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestBody body: AddGameAccountRequest,
-    ): ResponseEntity<GameAccountDto> =
-        ResponseEntity.status(HttpStatus.CREATED).body(
-            service.addGameAccount(jwt.subject, pseudo(jwt), jwt.getClaimAsString("email"), body.game, body.identifier),
-        )
+    ): ResponseEntity<GameAccountDto> = ResponseEntity.status(HttpStatus.CREATED).body(
+        service.addGameAccount(jwt.subject, pseudo(jwt), jwt.getClaimAsString("email"), body.game, body.identifier),
+    )
 
     @DeleteMapping("/game-accounts/{id}")
-    fun deleteGameAccount(
-        @AuthenticationPrincipal jwt: Jwt,
-        @PathVariable id: UUID,
-    ): ResponseEntity<Void> {
+    fun deleteGameAccount(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): ResponseEntity<Void> {
         service.deleteGameAccount(jwt.subject, pseudo(jwt), jwt.getClaimAsString("email"), id)
         return ResponseEntity.noContent().build()
     }
 
-    private fun pseudo(jwt: Jwt): String =
-        jwt.getClaimAsString("preferred_username") ?: "Joueur"
+    private fun pseudo(jwt: Jwt): String = jwt.getClaimAsString("preferred_username") ?: "Joueur"
 }

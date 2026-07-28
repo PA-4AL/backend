@@ -5,22 +5,11 @@ package org.example.backend.model
 data class TeamMemberDto(
     val userId: String,
     val pseudo: String,
-    val role: String,            // captain | member | substitute
+    val role: String, // captain | member | substitute
 )
 
-data class TeamDto(
-    val id: String,
-    val name: String,
-    val tag: String?,
-    val members: List<TeamMemberDto>,
-)
+data class TeamDto(val id: String, val name: String, val tag: String?, val members: List<TeamMemberDto>)
 
-data class CreateTeamRequest(
-    val name: String,
-    val tag: String? = null,
-)
+data class CreateTeamRequest(val name: String, val tag: String? = null)
 
-data class AddMemberRequest(
-    val pseudo: String,
-    val role: String = "member",
-)
+data class AddMemberRequest(val pseudo: String, val role: String = "member")

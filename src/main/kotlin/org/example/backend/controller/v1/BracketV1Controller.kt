@@ -28,15 +28,11 @@ class BracketV1Controller(private val service: BracketService) {
 
     /** Génération / re-génération de l'arbre — authentifié, format au choix. */
     @PostMapping("/tournaments/{id}/bracket/generate")
-    fun generate(
-        @PathVariable id: UUID,
-        @RequestBody(required = false) req: GenerateBracketRequest?,
-    ): BracketDto = service.generate(id, req?.format)
+    fun generate(@PathVariable id: UUID, @RequestBody(required = false) req: GenerateBracketRequest?): BracketDto =
+        service.generate(id, req?.format)
 
     /** Saisie du score d'un match, avec propagation du vainqueur. */
     @PostMapping("/matches/{matchId}/score")
-    fun reportScore(
-        @PathVariable matchId: UUID,
-        @RequestBody score: ScoreRequest,
-    ): BracketDto = service.reportScore(matchId, score.scoreA, score.scoreB)
+    fun reportScore(@PathVariable matchId: UUID, @RequestBody score: ScoreRequest): BracketDto =
+        service.reportScore(matchId, score.scoreA, score.scoreB)
 }

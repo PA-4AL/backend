@@ -20,13 +20,20 @@ Kotlin 2.2.21 · Spring Boot 4.0.2 · Gradle 9.3 (wrapper) · toolchain Java **2
 ./gradlew bootRun          # lance l'API sur :8080
 ./gradlew build            # compile + tests
 ./gradlew test             # tests seuls
-./gradlew test --tests "org.example.backend.BackendApplicationTests"   # un seul test
+./gradlew test --tests "org.example.backend.service.JobServiceTest"       # un seul test
+./gradlew ktlintCheck      # linter (bloquant en CI)
 ./gradlew jooqCodegen      # régénère le package database/ depuis la BDD live
 ```
 
-Pas de linter/formateur configuré (ni ktlint ni detekt).
+`./gradlew ktlintCheck` (linter) et `./gradlew ktlintFormat` (correction
+automatique) — joués par la CI, bloquants avant merge. Style `intellij_idea`
+(`.editorconfig`) ; le code jOOQ généré est exclu.
 
-Les tests actuels se limitent à un smoke test `@SpringBootTest` — il **nécessite une base joignable** (le contexte Spring démarre Liquibase et le DataSource).
+Les tests sont des tests **unitaires sans base** : dépôts mockés avec MockK
+(`BracketServiceTest`, `JobServiceTest`), contrat de sérialisation avec le worker
+(`WorkerContractTest`), et helpers d'affichage. Le smoke test `@SpringBootTest`
+d'origine a été retiré : il exigeait une base joignable et échouait donc en CI. Un
+test d'intégration Testcontainers reste à écrire.
 
 ### Environnement local
 

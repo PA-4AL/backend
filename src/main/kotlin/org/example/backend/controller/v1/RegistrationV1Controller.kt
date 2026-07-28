@@ -33,10 +33,7 @@ class RegistrationV1Controller(private val service: RegistrationService) {
 
     /** Inscription solo de l'utilisateur connecté. */
     @PostMapping("/tournaments/{id}/register")
-    fun register(
-        @PathVariable id: UUID,
-        @AuthenticationPrincipal jwt: Jwt,
-    ): ResponseEntity<ParticipantDto> {
+    fun register(@PathVariable id: UUID, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<ParticipantDto> {
         val created = service.register(
             tournamentId = id,
             keycloakId = jwt.subject,
@@ -65,10 +62,7 @@ class RegistrationV1Controller(private val service: RegistrationService) {
 
     /** Ajout manuel d'un participant par l'organisateur (joueur sans compte). */
     @PostMapping("/tournaments/{id}/participants")
-    fun addManual(
-        @PathVariable id: UUID,
-        @RequestBody body: AddParticipantRequest,
-    ): ResponseEntity<ParticipantDto> =
+    fun addManual(@PathVariable id: UUID, @RequestBody body: AddParticipantRequest): ResponseEntity<ParticipantDto> =
         ResponseEntity.status(HttpStatus.CREATED).body(service.addManual(id, body.name))
 
     /** Inscriptions à traiter (organisateur). */

@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 25/07/2026 (25 endpoints, tous en v1)
+> **Dernière mise à jour :** 28/07/2026 (27 endpoints en v1, + 1 endpoint interne)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -85,6 +85,9 @@ CORS restreint à `app.cors.allowed-origins`
 | 23 | DELETE | `/api/v1/teams/{id}/members/{memberId}` | JWT | 200 |
 | 24 | GET | `/api/v1/dashboard/kpis` | JWT | 200 |
 | 25 | GET | `/api/v1/dashboard/activity` | JWT | 200 |
+| 26 | POST | `/api/v1/teams/import` | JWT (organizer/admin) | 200 / 400 / 413 / 503 |
+| 27 | GET | `/api/v1/jobs/{id}` | JWT | 200 / 404 |
+| — | POST | `/internal/jobs/callback` | jeton OIDC Google (Pub/Sub) | 204 / 400 / 403 |
 
 ---
 
@@ -374,6 +377,67 @@ frontend dans `../../frontend/src/api/types.ts`. Les DTOs sont **taillés pour l
 React**, pas pour refléter les tables : ils contiennent des chaînes déjà formatées
 (fuseau `Europe/Paris`, locale française) et des couleurs hex.
 
+## Traitements asynchrones (import / export Excel)
+
+`JobV1Controller` → `JobService` → Pub/Sub → worker Rust.
+Architecture et contrat de messages : `../../infra/docs/ARCHITECTURE.md`.
+
+### 26. `POST /api/v1/teams/import` — JWT (organizer/admin)
+
+Soumet un fichier Excel de rosters. La réponse est **immédiate** : le traitement
+est asynchrone, le client suit son avancement via l'endpoint 27.
+
+```json
+{ "tournamentType": "esport_5v5", "fileBase64": "UEsDBBQ…" }
+```
+
+`tournamentType` ∈ `esport_5v5` | `football_11v11` (schémas de colonnes reconnus
+par le worker). `fileBase64` est le `.xlsx` encodé en base64.
+
+**200** → `JobDto` (`status: "processing"`)
+**400** type de tournoi inconnu, ou fichier absent
+**413** fichier au-delà de la limite Pub/Sub (10 Mo par message, base64 comprise)
+**503** messagerie non configurée (`app.pubsub.enabled=false`, cas du poste de dev)
+
+### 27. `GET /api/v1/jobs/{id}` — JWT
+
+État d'un traitement. À interroger en *polling* après l'endpoint 26.
+
+**200** → `JobDto`
+**404** traitement introuvable
+
+### `POST /internal/jobs/callback` — interne, hors versionnement
+
+Cible de l'abonnement **push** Pub/Sub qui rapporte les réponses du worker. Cet
+endpoint est délibérément **hors du paquet `controller`** : le préfixe
+`/api/{version}` ne doit pas s'y appliquer, l'appelant étant Pub/Sub et non un
+client de l'API.
+
+Authentification par jeton OIDC signé par Google (chaîne de sécurité dédiée dans
+`SecurityConfig`), audience égale à l'URL du callback, et vérification du compte
+de service appelant.
+
+**204** réponse prise en compte (ou ignorée : job inconnu, ou déjà terminé —
+Pub/Sub garantit *au moins* une livraison, le traitement est idempotent)
+**400** message illisible ou `task_id` invalide → Pub/Sub abandonne le message
+**403** appelant inattendu
+
+### DTO — `JobDtos.kt`
+
+```kotlin
+data class JobDto(
+    val id: UUID,
+    val type: String,          // team_import | team_export
+    val status: String,        // pending | processing | done | failed
+    val error: String?,        // message du worker en cas d'échec
+    val createdAt: OffsetDateTime?,
+    val finishedAt: OffsetDateTime?,
+    val result: Map<String, Any?>?,  // team_count, player_count, teams… ou file_base64
+)
+```
+
+---
+
 ### Tournois — `TournamentDtos.kt`
 
 ```ts
@@ -502,8 +566,9 @@ Pour éviter de les chercher — détail et priorisation dans
   seulement comme effet de bord d'une saisie de score.
 - **Check-in** des participants (spec §4.3).
 - **Co-organisateurs** : aucun ajout de `co_organizer` (spec §4.1).
-- **Import / export Excel** des rosters — le lien avec le worker Rust n'existe pas
-  (spec §4.3, §7).
+- **Export Excel** : le worker sait le produire (`export_excel`) mais aucune route
+  ne l'expose encore — `JobService.submitTournamentExport` est prêt, il manque le
+  controller et la résolution des équipes/matchs du tournoi.
 - **Litiges, forfaits, disqualifications, planification** des matchs (spec §4.4).
 - **Notifications** configurables (spec §5).
 - **Temps réel** (WebSocket / SSE) pour les brackets et scores (spec §5).

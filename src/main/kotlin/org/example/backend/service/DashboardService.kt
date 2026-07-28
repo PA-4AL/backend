@@ -9,12 +9,7 @@ import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
 
 /** Événement du fil d'activité, avant mise en forme finale. */
-private data class Event(
-    val id: String,
-    val kind: String,
-    val html: String,
-    val at: OffsetDateTime,
-)
+private data class Event(val id: String, val kind: String, val html: String, val at: OffsetDateTime)
 
 @Service
 class DashboardService(private val repo: DashboardRepository) {
@@ -49,8 +44,11 @@ class DashboardService(private val repo: DashboardRepository) {
             Event(
                 id = "trn-${row.id}",
                 kind = if (finished) "finished" else "live",
-                html = if (finished) "<b>${row.name}</b> est terminé."
-                else "Tournoi <b>${row.name}</b> créé.",
+                html = if (finished) {
+                    "<b>${row.name}</b> est terminé."
+                } else {
+                    "Tournoi <b>${row.name}</b> créé."
+                },
                 at = row.createdAt,
             )
         }

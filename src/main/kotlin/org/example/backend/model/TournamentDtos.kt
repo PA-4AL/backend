@@ -6,18 +6,14 @@ data class TournamentSummaryDto(
     val id: String,
     val name: String,
     val code: String,
-    val format: String,            // single_elim | double_elim | round_robin | swiss
+    val format: String, // single_elim | double_elim | round_robin | swiss
     val participants: Int,
     val maxParticipants: Int,
-    val status: String,            // draft | registration | check_in | ongoing | finished | cancelled
+    val status: String, // draft | registration | check_in | ongoing | finished | cancelled
     val scheduleLabel: String,
 )
 
-data class TeamRefDto(
-    val code: String,
-    val name: String,
-    val color: String,
-)
+data class TeamRefDto(val code: String, val name: String, val color: String)
 
 data class MatchRowDto(
     val id: String,
@@ -25,7 +21,7 @@ data class MatchRowDto(
     val teamB: TeamRefDto,
     val scoreA: Int?,
     val scoreB: Int?,
-    val status: String,            // live | done | scheduled
+    val status: String, // live | done | scheduled
     val time: String? = null,
 )
 
@@ -45,7 +41,7 @@ data class TournamentDetailDto(
     val bestOf: Int,
     val checkInWindow: String,
     val region: String,
-    val visibility: String,        // public | private
+    val visibility: String, // public | private
     val cashPrize: String,
     val currentPhaseLabel: String,
     val startedLabel: String,
@@ -58,7 +54,7 @@ data class TournamentDetailDto(
 /** Un jeu du tournoi avec son format de matchs (spec §4.1 : BO par round). */
 data class GameSpec(
     val name: String,
-    val bestOf: Int = 1,          // 1 | 3 | 5
+    val bestOf: Int = 1, // 1 | 3 | 5
 )
 
 data class CreateTournamentRequest(
@@ -75,5 +71,5 @@ data class CreateTournamentRequest(
 )
 
 data class GenerateBracketRequest(
-    val format: String? = null,   // choisi au moment de la génération
+    val format: String? = null, // choisi au moment de la génération
 )

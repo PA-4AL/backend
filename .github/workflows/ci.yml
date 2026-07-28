@@ -1,0 +1,125 @@
+# =============================================================================
+# Intégration continue — backend Kotlin/Spring Boot
+#
+# lint (ktlint) → tests unitaires (JUnit) → build de l'image → publication.
+# Le jar est construit DANS l'image (multi-stage) : un seul chemin de build,
+# donc aucun risque d'écart entre ce qui est testé et ce qui est livré.
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  IMAGE_NAME: pa-backend
+
+jobs:
+  quality:
+    name: Lint et tests
+    runs-on: ubuntu-latest
+
+    # Certains tests chargent le contexte Spring complet (ApiVersioningTests) :
+    # Liquibase et le DataSource démarrent, il leur faut donc une vraie base.
+    # Les identifiants correspondent aux valeurs par défaut d'application.yml.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pa
+          POSTGRES_PASSWORD: pa
+          POSTGRES_DB: pa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21' # même version que l'image de production
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Linter (ktlint)
+        run: ./gradlew ktlintCheck
+
+      - name: Tests unitaires
+        run: ./gradlew test
+
+      - name: Rapports de tests
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tests-backend
+          path: build/reports/tests/test/
+          retention-days: 7
+
+  image:
+    name: Build et publication de l'image
+    needs: quality
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Authentification Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Authentification GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SA_CI }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Authentification Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Calcul des tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+            ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/pa/backend
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=main,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build et push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Récapitulatif
+        run: |
+          echo "### Image publiée" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

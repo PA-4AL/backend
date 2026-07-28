@@ -1,0 +1,23 @@
+# Style Kotlin du projet, appliqué par ktlint (job `lint` de la CI).
+# On retient le style « intellij_idea » (celui de l'IDE utilisé par l'équipe)
+# plutôt que « ktlint_official », beaucoup plus prescriptif sur le retour à la
+# ligne des expressions et incompatible avec le code existant.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+indent_style = space
+indent_size = 4
+max_line_length = 120
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+
+[*.{gradle,xml,yml,yaml,json,sql}]
+indent_style = space
+indent_size = 2

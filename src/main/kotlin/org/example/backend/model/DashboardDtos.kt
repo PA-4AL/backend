@@ -13,7 +13,7 @@ data class DashboardKpisDto(
 
 data class ActivityItemDto(
     val id: String,
-    val kind: String,   // win | live | registration | dispute | finished
+    val kind: String, // win | live | registration | dispute | finished
     val html: String,
     val time: String,
 )
