@@ -33,6 +33,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'org.postgresql:postgresql'
+	// Jetons d'accès depuis les identifiants par défaut de l'environnement (ADC),
+	// pour publier sur Pub/Sub via son API REST — évite d'embarquer toute la pile
+	// gRPC du client google-cloud-pubsub pour un simple POST.
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.48.0'
 	implementation 'tools.jackson.module:jackson-module-kotlin'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	testImplementation 'org.springframework.boot:spring-boot-starter-jooq-test'

@@ -33,5 +33,15 @@ management:
         enabled: true
 
 app:
+  pubsub:
+    # Messagerie asynchrone avec le worker Rust. Désactivée par défaut : en local,
+    # sans identifiants GCP, les imports Excel sont refusés proprement (503).
+    enabled: ${APP_PUBSUB_ENABLED:false}
+    project-id: ${GCP_PROJECT_ID:}
+    topic-demands: ${PUBSUB_TOPIC_DEMANDS:}
+    # Compte de service et audience attendus dans les jetons OIDC des livraisons
+    # push (renseignés par Terraform sur Cloud Run).
+    push-service-account: ${PUBSUB_PUSH_SERVICE_ACCOUNT:}
+    push-audience: ${PUBSUB_PUSH_AUDIENCE:}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
