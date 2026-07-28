@@ -1,0 +1,83 @@
+# =============================================================================
+# Mise en production — backend
+#
+# Déclenchement MANUEL : on choisit le tag d'image à promouvoir (celui produit
+# par la CI, `sha-xxxxxxx`). Ce découplage build/déploiement permet de rejouer
+# un déploiement à l'identique et de revenir en arrière sans rebuild.
+#
+# Ce workflow ne modifie QUE l'image du service : toute la configuration
+# (variables, réseau, secrets, scaling) reste décrite par Terraform.
+# =============================================================================
+name: Deploy prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag de l'image à déployer (ex. sha-a1b2c3d, ou latest)"
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-prod-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Déploiement Cloud Run
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Authentification GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SA_DEPLOY }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Vérification de l'existence de l'image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/pa/backend:${{ inputs.image_tag }}"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)'
+
+      - name: Révision précédente (pour un éventuel retour arrière)
+        run: |
+          PREV=$(gcloud run services describe pa-prod-backend \
+            --region ${{ vars.GCP_REGION }} \
+            --format='value(status.traffic[0].revisionName)')
+          echo "Révision actuellement en trafic : $PREV"
+          echo "PREV_REVISION=$PREV" >> $GITHUB_ENV
+
+      - name: Déploiement
+        run: |
+          gcloud run deploy pa-prod-backend \
+            --image "$IMAGE" \
+            --region ${{ vars.GCP_REGION }} \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          URL=$(gcloud run services describe pa-prod-backend \
+            --region ${{ vars.GCP_REGION }} --format='value(status.url)')
+          echo "Test de $URL/actuator/health"
+          for i in $(seq 1 12); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/actuator/health" || true)
+            [ "$CODE" = "200" ] && echo "OK ($CODE)" && exit 0
+            echo "tentative $i : $CODE"; sleep 5
+          done
+          echo "::error::Le service ne répond pas — retour arrière : gcloud run services update-traffic pa-prod-backend --region ${{ vars.GCP_REGION }} --to-revisions $PREV_REVISION=100"
+          exit 1
+
+      - name: Récapitulatif
+        if: always()
+        run: |
+          echo "### Déploiement backend" >> $GITHUB_STEP_SUMMARY
+          echo "- image : \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
+          echo "- révision précédente : \`$PREV_REVISION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- retour arrière : \`gcloud run services update-traffic pa-prod-backend --region ${{ vars.GCP_REGION }} --to-revisions $PREV_REVISION=100\`" >> $GITHUB_STEP_SUMMARY
