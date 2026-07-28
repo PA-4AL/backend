@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.internal
 
 import org.example.backend.config.PubSubProperties
 import org.example.backend.model.PubSubPushEnvelope

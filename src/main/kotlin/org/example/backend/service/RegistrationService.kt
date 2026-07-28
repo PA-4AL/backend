@@ -21,28 +21,26 @@ class RegistrationService(
     private val teams: TeamRepository,
 ) {
 
-    fun participants(tournamentId: UUID): List<ParticipantDto> =
-        repo.listByTournament(tournamentId).map {
-            ParticipantDto(
-                registrationId = it.id.toString(),
-                name = it.name,
-                status = it.status.literal,
-                seed = it.seed,
-                registeredLabel = Display.relativeTime(it.createdAt),
-            )
-        }
+    fun participants(tournamentId: UUID): List<ParticipantDto> = repo.listByTournament(tournamentId).map {
+        ParticipantDto(
+            registrationId = it.id.toString(),
+            name = it.name,
+            status = it.status.literal,
+            seed = it.seed,
+            registeredLabel = Display.relativeTime(it.createdAt),
+        )
+    }
 
-    fun pending(): List<PendingRegistrationDto> =
-        repo.listPending().map {
-            PendingRegistrationDto(
-                registrationId = it.id.toString(),
-                participant = it.name,
-                tournamentId = it.tournamentId.toString(),
-                tournamentName = it.tournamentName,
-                status = it.status.literal,
-                registeredLabel = Display.relativeTime(it.createdAt),
-            )
-        }
+    fun pending(): List<PendingRegistrationDto> = repo.listPending().map {
+        PendingRegistrationDto(
+            registrationId = it.id.toString(),
+            participant = it.name,
+            tournamentId = it.tournamentId.toString(),
+            tournamentName = it.tournamentName,
+            status = it.status.literal,
+            registeredLabel = Display.relativeTime(it.createdAt),
+        )
+    }
 
     /** Inscription solo de l'utilisateur authentifié (spec §4.3). */
     @Transactional
@@ -67,7 +65,13 @@ class RegistrationService(
 
     /** Inscription d'une équipe par son capitaine (spec §4.3). */
     @Transactional
-    fun registerTeam(tournamentId: UUID, teamId: UUID, keycloakId: String, pseudo: String, email: String?): ParticipantDto {
+    fun registerTeam(
+        tournamentId: UUID,
+        teamId: UUID,
+        keycloakId: String,
+        pseudo: String,
+        email: String?,
+    ): ParticipantDto {
         val tournament = requireOpen(tournamentId)
         val teamSize = tournament.teamSize ?: 1
         if (teamSize <= 1) {
@@ -114,17 +118,20 @@ class RegistrationService(
         return dto(id, clean, status)
     }
 
-    private fun requireOpen(tournamentId: UUID) =
-        (tournaments.findById(tournamentId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Tournoi introuvable"))
-            .also {
-                if (it.status !in listOf(
-                        TournamentStatus.draft, TournamentStatus.registration, TournamentStatus.check_in,
-                    )
-                ) {
-                    throw ResponseStatusException(HttpStatus.CONFLICT, "Les inscriptions sont fermées")
-                }
+    private fun requireOpen(tournamentId: UUID) = (
+        tournaments.findById(tournamentId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Tournoi introuvable")
+        )
+        .also {
+            if (it.status !in listOf(
+                    TournamentStatus.draft,
+                    TournamentStatus.registration,
+                    TournamentStatus.check_in,
+                )
+            ) {
+                throw ResponseStatusException(HttpStatus.CONFLICT, "Les inscriptions sont fermées")
             }
+        }
 
     /** Liste d'attente quand le tournoi est complet (spec §4.3). */
     private fun statusFor(tournamentId: UUID): RegistrationStatus {

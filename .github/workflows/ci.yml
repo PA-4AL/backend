@@ -24,6 +24,25 @@ jobs:
   quality:
     name: Lint et tests
     runs-on: ubuntu-latest
+
+    # Certains tests chargent le contexte Spring complet (ApiVersioningTests) :
+    # Liquibase et le DataSource démarrent, il leur faut donc une vraie base.
+    # Les identifiants correspondent aux valeurs par défaut d'application.yml.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pa
+          POSTGRES_PASSWORD: pa
+          POSTGRES_DB: pa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
     steps:
       - uses: actions/checkout@v7
 

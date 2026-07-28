@@ -1,4 +1,4 @@
-package org.example.backend.controller
+package org.example.backend.controller.v1
 
 import org.example.backend.model.ImportTeamsRequest
 import org.example.backend.model.JobDto
@@ -11,23 +11,28 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 /**
  * Import et export Excel (spec §4.3) — traitements asynchrones délégués au
- * worker Rust. Les endpoints répondent immédiatement avec un job à suivre ; le
- * frontend interroge ensuite `GET /api/jobs/{id}`.
+ * worker Rust via Pub/Sub. Les endpoints répondent immédiatement avec un job à
+ * suivre ; le frontend interroge ensuite `GET /api/v1/jobs/{id}`.
+ *
+ * Le préfixe `/api/{version}` est appliqué par `config/WebMvcConfig.kt` à tous
+ * les controllers de ce paquet : les chemins déclarés ici sont donc nus.
  */
 @RestController
-class JobController(private val jobs: JobService, private val registrations: RegistrationRepository) {
+@RequestMapping(version = "1+")
+class JobV1Controller(private val jobs: JobService, private val registrations: RegistrationRepository) {
 
-    @PostMapping("/api/teams/import")
+    @PostMapping("/teams/import")
     @PreAuthorize("hasAnyRole('organizer', 'admin')")
     fun importTeams(@AuthenticationPrincipal jwt: Jwt, @RequestBody body: ImportTeamsRequest): JobDto =
         jobs.submitTeamImport(body, currentUserId(jwt))
 
-    @GetMapping("/api/jobs/{id}")
+    @GetMapping("/jobs/{id}")
     fun status(@PathVariable id: UUID): JobDto = jobs.get(id)
 
     /** Identifiant interne de l'utilisateur, rattaché à son compte Keycloak. */
