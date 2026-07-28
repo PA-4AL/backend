@@ -25,9 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
  */
 @Configuration
 @EnableWebSecurity
-class SecurityConfig(
-    @param:Value("\${app.cors.allowed-origins}") private val allowedOrigins: List<String>,
-) {
+class SecurityConfig(@param:Value("\${app.cors.allowed-origins}") private val allowedOrigins: List<String>) {
 
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
@@ -37,6 +35,10 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it
+                    // Sondes de disponibilité : lues par Cloud Run (startup /
+                    // liveness probes) et par le smoke test de la pipeline de
+                    // déploiement — donc avant toute authentification.
+                    .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/tournaments/**").permitAll()
                     .anyRequest().authenticated()
             }
@@ -51,6 +53,7 @@ class SecurityConfig(
         val converter = JwtAuthenticationConverter()
         converter.setJwtGrantedAuthoritiesConverter { jwt: Jwt ->
             val realmAccess = jwt.getClaimAsMap("realm_access") ?: emptyMap<String, Any>()
+
             @Suppress("UNCHECKED_CAST")
             val roles = realmAccess["roles"] as? Collection<String> ?: emptyList()
             roles.map { SimpleGrantedAuthority("ROLE_$it") as GrantedAuthority }
