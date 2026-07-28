@@ -99,21 +99,14 @@ class JobService(
     private fun submit(type: JobType, taskType: String, payload: Map<String, Any?>, createdBy: UUID?): JobDto {
         val jobId = jobs.create(type, mapper.writeValueAsString(payload), createdBy)
 
+        // Le contrat snake_case est porté par les annotations de WorkerRequest :
+        // une seule source de vérité pour la publication et la réception.
         val message = WorkerRequest(
             taskId = jobId.toString(),
             taskType = taskType,
             payload = payload,
         )
-        // Les clés attendues par le worker sont en snake_case (worker/src/models.rs).
-        val json = mapper.writeValueAsString(
-            mapOf(
-                "task_id" to message.taskId,
-                "task_type" to message.taskType,
-                "payload" to message.payload,
-            ),
-        )
-
-        publisher.publishDemand(json)
+        publisher.publishDemand(mapper.writeValueAsString(message))
         jobs.markProcessing(jobId)
 
         log.info("Job {} soumis ({} → {})", jobId, type.literal, taskType)

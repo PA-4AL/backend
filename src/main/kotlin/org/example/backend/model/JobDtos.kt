@@ -1,5 +1,6 @@
 package org.example.backend.model
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -8,12 +9,25 @@ import java.util.UUID
    Toute évolution doit rester synchronisée avec ce fichier.
    --------------------------------------------------------------------------- */
 
-/** Message publié sur `topic-demandes` (backend → worker). */
-data class WorkerRequest(val taskId: String, val taskType: String, val payload: Map<String, Any?>)
+/**
+ * Message publié sur `topic-demandes` (backend → worker).
+ *
+ * Le worker attend du snake_case (`task_id`, `task_type`) : les annotations sont
+ * la seule source de vérité de ce contrat, dans les deux sens.
+ */
+data class WorkerRequest(
+    @param:JsonProperty("task_id") @get:JsonProperty("task_id")
+    val taskId: String,
+    @param:JsonProperty("task_type") @get:JsonProperty("task_type")
+    val taskType: String,
+    val payload: Map<String, Any?>,
+)
 
 /** Message reçu depuis `topic-reponses` (worker → backend). */
 data class WorkerResponse(
+    @param:JsonProperty("task_id") @get:JsonProperty("task_id")
     val taskId: String? = null,
+    @param:JsonProperty("task_type") @get:JsonProperty("task_type")
     val taskType: String? = null,
     /** "success" ou "error". */
     val status: String? = null,
