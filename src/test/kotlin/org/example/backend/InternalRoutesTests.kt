@@ -32,7 +32,7 @@ class InternalRoutesTests {
     fun `le callback Pub-Sub est servi hors versionnement`() {
         // 401 et non 404 : la route existe et sa chaîne de sécurité dédiée exige un
         // jeton OIDC. Un 404 signifierait que le préfixe /api/{version} s'applique.
-        mockMvc.post("/internal/jobs/callback") {
+        mockMvc.post("/internal/v1/jobs/callback") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"message":{"data":"e30="}}"""
         }.andExpect { status { isUnauthorized() } }
@@ -40,7 +40,7 @@ class InternalRoutesTests {
 
     @Test
     fun `le callback n'est pas exposé sous le préfixe de version`() {
-        mockMvc.post("/api/v1/internal/jobs/callback") {
+        mockMvc.post("/api/v1/internal/v1/jobs/callback") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"message":{"data":"e30="}}"""
         }.andExpect { status { isUnauthorized() } } // filtré par la sécurité, pas routé

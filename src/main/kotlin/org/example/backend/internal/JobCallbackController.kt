@@ -19,6 +19,14 @@ import java.util.Base64
 /**
  * Réception des réponses du worker, poussées par Pub/Sub.
  *
+ * Chemin `/internal/v1/jobs/callback` : le 2e segment doit être une version
+ * lisible. La résolution de version configurée par `WebMvcConfig`
+ * (`usePathSegment(1)`) s'applique à TOUTES les routes servies par le
+ * DispatcherServlet, pas seulement à celles sous /api — un `/internal/jobs/...`
+ * fait échouer le parsing et renvoie 400 avant d'atteindre ce controller. Le
+ * piège est invisible sans jeton : Spring Security répond 401 en amont (cf.
+ * CallbackAuthenticatedTests).
+ *
  * L'appelant est authentifié par un jeton OIDC signé par Google pour le compte
  * de service configuré dans l'abonnement push : la chaîne de sécurité
  * `/internal` (cf. [org.example.backend.config.SecurityConfig]) vérifie
@@ -38,7 +46,7 @@ class JobCallbackController(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @PostMapping("/internal/jobs/callback")
+    @PostMapping("/internal/v1/jobs/callback")
     fun callback(@AuthenticationPrincipal jwt: Jwt?, @RequestBody envelope: PubSubPushEnvelope): ResponseEntity<Void> {
         verifyCaller(jwt)
 
