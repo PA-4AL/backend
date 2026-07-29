@@ -2,6 +2,7 @@ package org.example.backend.service
 
 import org.example.backend.database.enums.JobStatus
 import org.example.backend.database.enums.JobType
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.ImportTeamsRequest
 import org.example.backend.model.JobDto
 import org.example.backend.model.TournamentFileType
@@ -9,10 +10,8 @@ import org.example.backend.model.WorkerRequest
 import org.example.backend.model.WorkerResponse
 import org.example.backend.repository.JobRepository
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
@@ -49,18 +48,16 @@ class JobService(
     @Transactional
     fun submitTeamImport(request: ImportTeamsRequest, createdBy: UUID?): JobDto {
         TournamentFileType.from(request.tournamentType)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
+            ?: throw ErreurMetier.Invalide(
                 "Type de tournoi inconnu : ${request.tournamentType} " +
                     "(attendu : ${TournamentFileType.entries.joinToString { it.literal }})",
             )
 
         if (request.fileBase64.isBlank()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Fichier absent")
+            throw ErreurMetier.Invalide("Fichier absent")
         }
         if (request.fileBase64.length > MAX_PAYLOAD_BYTES) {
-            throw ResponseStatusException(
-                HttpStatus.PAYLOAD_TOO_LARGE,
+            throw ErreurMetier.TropVolumineux(
                 "Fichier trop volumineux : la limite est de 10 Mo par message",
             )
         }
@@ -82,8 +79,7 @@ class JobService(
         createdBy: UUID?,
     ): JobDto {
         TournamentFileType.from(tournamentType)
-            ?: throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
+            ?: throw ErreurMetier.Invalide(
                 "Type de tournoi inconnu : $tournamentType",
             )
 
@@ -120,7 +116,7 @@ class JobService(
     @Transactional
     fun applyWorkerResponse(response: WorkerResponse) {
         val jobId = response.taskId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
-            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "task_id absent ou invalide")
+            ?: throw ErreurMetier.Invalide("task_id absent ou invalide")
 
         val job = jobs.findById(jobId)
         if (job == null) {
@@ -154,8 +150,7 @@ class JobService(
                 )
             }
 
-            else -> throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
+            else -> throw ErreurMetier.Invalide(
                 "Statut de réponse inattendu : ${response.status}",
             )
         }
@@ -163,7 +158,7 @@ class JobService(
 
     fun get(id: UUID): JobDto {
         val job = jobs.findById(id)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Traitement introuvable")
+            ?: throw ErreurMetier.Introuvable("Traitement introuvable")
 
         @Suppress("UNCHECKED_CAST")
         val payload = runCatching {

@@ -4,6 +4,7 @@ import org.example.backend.database.enums.MatchStatus
 import org.example.backend.database.enums.PhaseType
 import org.example.backend.database.enums.TournamentStatus
 import org.example.backend.database.tables.records.MatchesRecord
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.BracketDto
 import org.example.backend.model.BracketMatchDto
 import org.example.backend.model.BracketRoundDto
@@ -13,10 +14,8 @@ import org.example.backend.model.SlotDto
 import org.example.backend.model.TeamRefDto
 import org.example.backend.repository.BracketRepository
 import org.example.backend.repository.TournamentRepository
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -48,7 +47,7 @@ class BracketService(private val tournaments: TournamentRepository, private val 
     @Transactional
     fun generate(tournamentId: UUID, format: String? = null): BracketDto {
         val tournament = tournaments.findById(tournamentId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Tournoi introuvable")
+            ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
 
         // Re-génération possible tant que le tournoi n'a pas démarré (spec §4.2)
         if (tournament.status !in listOf(
@@ -57,19 +56,18 @@ class BracketService(private val tournaments: TournamentRepository, private val 
                 TournamentStatus.check_in,
             )
         ) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Le tournoi a déjà démarré")
+            throw ErreurMetier.Conflit("Le tournoi a déjà démarré")
         }
 
         val phase = tournaments.findFirstPhase(tournamentId)
-            ?: throw ResponseStatusException(HttpStatus.CONFLICT, "Le tournoi n'a aucune phase")
+            ?: throw ErreurMetier.Conflit("Le tournoi n'a aucune phase")
 
         // Format choisi au moment de la génération (V1 : élimination simple)
         if (format != null) {
             val type = PhaseType.entries.firstOrNull { it.literal == format }
-                ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Format inconnu : $format")
+                ?: throw ErreurMetier.Invalide("Format inconnu : $format")
             if (type != PhaseType.single_elim) {
-                throw ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+                throw ErreurMetier.Invalide(
                     "Format « $format » pas encore supporté — élimination simple uniquement en V1",
                 )
             }
@@ -79,7 +77,7 @@ class BracketService(private val tournaments: TournamentRepository, private val 
         // Seeding : les seeds manuels d'abord, puis les non-seedés mélangés (spec : aléatoire ou manuel)
         val participants = tournaments.findActiveParticipants(tournamentId)
         if (participants.size < 2) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Au moins 2 participants confirmés sont requis")
+            throw ErreurMetier.Conflit("Au moins 2 participants confirmés sont requis")
         }
         val ordered = participants.filter { it.seed != null }.sortedBy { it.seed } +
             participants.filter { it.seed == null }.shuffled()
@@ -145,17 +143,17 @@ class BracketService(private val tournaments: TournamentRepository, private val 
     @Transactional
     fun reportScore(matchId: UUID, scoreA: Int, scoreB: Int): BracketDto {
         if (scoreA == scoreB) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Pas de match nul en élimination directe")
+            throw ErreurMetier.Invalide("Pas de match nul en élimination directe")
         }
         val match = repo.findMatch(matchId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Match introuvable")
+            ?: throw ErreurMetier.Introuvable("Match introuvable")
         if (match.status == MatchStatus.finished) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Match déjà terminé")
+            throw ErreurMetier.Conflit("Match déjà terminé")
         }
         val p1 = match.participant1Id
         val p2 = match.participant2Id
         if (p1 == null || p2 == null) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Les deux participants ne sont pas encore connus")
+            throw ErreurMetier.Conflit("Les deux participants ne sont pas encore connus")
         }
 
         repo.replaceScore(matchId, scoreA, scoreB)
@@ -164,7 +162,7 @@ class BracketService(private val tournaments: TournamentRepository, private val 
         propagateWinner(match.position!!, match.nextMatchId, winner)
 
         val tournamentId = repo.findPhaseTournamentId(match.phaseId!!)
-            ?: throw ResponseStatusException(HttpStatus.CONFLICT, "Phase orpheline")
+            ?: throw ErreurMetier.Conflit("Phase orpheline")
 
         // Finale jouée → le tournoi est terminé (cycle de vie spec §4.1)
         if (match.nextMatchId == null) {
@@ -188,7 +186,7 @@ class BracketService(private val tournaments: TournamentRepository, private val 
 
     fun getBracket(tournamentId: UUID): BracketDto {
         val phase = tournaments.findFirstPhase(tournamentId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Tournoi sans phase")
+            ?: throw ErreurMetier.Introuvable("Tournoi sans phase")
         val matches = repo.findPhaseMatches(phase.id!!)
         if (matches.isEmpty()) return BracketDto(rounds = emptyList(), champion = null)
 

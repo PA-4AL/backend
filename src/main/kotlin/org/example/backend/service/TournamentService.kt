@@ -3,16 +3,15 @@ package org.example.backend.service
 import org.example.backend.database.enums.PhaseType
 import org.example.backend.database.enums.TournamentVisibility
 import org.example.backend.database.tables.records.TournamentsRecord
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.CreateTournamentRequest
 import org.example.backend.model.Display
 import org.example.backend.model.TeamRefDto
 import org.example.backend.model.TournamentDetailDto
 import org.example.backend.model.TournamentSummaryDto
 import org.example.backend.repository.TournamentRepository
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -79,7 +78,7 @@ class TournamentService(private val repository: TournamentRepository, private va
             .map { it.name.trim() to it.bestOf.coerceIn(1, 5) }
             .filter { it.first.isNotEmpty() }
         if (games.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Au moins un jeu est requis")
+            throw ErreurMetier.Invalide("Au moins un jeu est requis")
         }
         val format = PhaseType.entries.firstOrNull { it.literal == req.format } ?: PhaseType.single_elim
         val visibility = TournamentVisibility.entries.firstOrNull { it.literal == req.visibility }
@@ -88,7 +87,7 @@ class TournamentService(private val repository: TournamentRepository, private va
             try {
                 java.time.LocalDateTime.parse(it).atZone(zone).toOffsetDateTime()
             } catch (_: Exception) {
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Date de début invalide")
+                throw ErreurMetier.Invalide("Date de début invalide")
             }
         }
         val t = repository.create(

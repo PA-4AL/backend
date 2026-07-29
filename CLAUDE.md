@@ -73,7 +73,9 @@ Découpage classique en trois couches, un fichier par domaine (tournaments, brac
   les routes du DispatcherServlet. Sans jeton, Spring Security masque le problème
   en répondant 401 avant la résolution de version : tester ces routes
   authentifié (`CallbackAuthenticatedTests`).
-- `service/` — logique métier + **mise en forme pour le frontend**. Les writes sont `@Transactional`. Les erreurs sont levées en `ResponseStatusException(HttpStatus.X, "message français")` (pas de `@ControllerAdvice`).
+- `service/` — logique métier + **mise en forme pour le frontend**. Les writes sont `@Transactional`. **Le domaine ne connaît pas HTTP** : il lève des `ErreurMetier` (`Introuvable`, `Invalide`, `Conflit`, `NonAutorise`, `TropVolumineux`) ou des `ErreurTechnique` (`ServiceIndisponible`, `DependanceEnEchec`), définies dans `error/`. Aucun import de `org.springframework.http` ici — voir `docs/adr/0007-erreurs-metier-et-http.md`.
+- `error/` — hiérarchies scellées d'erreurs métier et techniques, sans dépendance web.
+- `web/GestionnaireErreurs.kt` — **seul endroit** où une erreur devient un statut HTTP. Renvoie un `ProblemDetail` avec `message` (lu par le frontend) et `code` fonctionnel stable. Hérite de `ResponseEntityExceptionHandler` pour ne pas avaler les exceptions de Spring MVC.
 - `repository/` — jOOQ `DSLContext` injecté, requêtes typées via `database/tables/references/*`. Renvoie soit des `*Record` jOOQ, soit de petites `data class` de projection déclarées en tête du fichier (`ParticipantRow`, `RegistrationInfo`…).
 - `model/` — DTOs `data class` sérialisés tels quels en JSON, + l'objet `Display` (`BracketDtos.kt`) qui centralise couleurs, initiales et libellés de round.
 

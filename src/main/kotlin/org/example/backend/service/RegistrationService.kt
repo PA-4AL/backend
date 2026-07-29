@@ -2,16 +2,15 @@ package org.example.backend.service
 
 import org.example.backend.database.enums.RegistrationStatus
 import org.example.backend.database.enums.TournamentStatus
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.Display
 import org.example.backend.model.ParticipantDto
 import org.example.backend.model.PendingRegistrationDto
 import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TeamRepository
 import org.example.backend.repository.TournamentRepository
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
@@ -47,15 +46,14 @@ class RegistrationService(
     fun register(tournamentId: UUID, keycloakId: String, pseudo: String, email: String?): ParticipantDto {
         val tournament = requireOpen(tournamentId)
         if ((tournament.teamSize ?: 1) > 1) {
-            throw ResponseStatusException(
-                HttpStatus.CONFLICT,
+            throw ErreurMetier.Conflit(
                 "Ce tournoi se joue en équipe (${tournament.teamSize}v${tournament.teamSize}) — inscris ton équipe",
             )
         }
 
         val userId = repo.upsertUserByKeycloak(keycloakId, pseudo, email)
         if (repo.existsForUser(tournamentId, userId)) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Tu es déjà inscrit à ce tournoi")
+            throw ErreurMetier.Conflit("Tu es déjà inscrit à ce tournoi")
         }
 
         val status = statusFor(tournamentId)
@@ -75,22 +73,21 @@ class RegistrationService(
         val tournament = requireOpen(tournamentId)
         val teamSize = tournament.teamSize ?: 1
         if (teamSize <= 1) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Ce tournoi se joue en solo")
+            throw ErreurMetier.Conflit("Ce tournoi se joue en solo")
         }
 
         val team = teams.find(teamId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Équipe introuvable")
+            ?: throw ErreurMetier.Introuvable("Équipe introuvable")
         val callerId = repo.upsertUserByKeycloak(keycloakId, pseudo, email)
         if (!teams.isCaptain(teamId, callerId)) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Seul le capitaine peut inscrire l'équipe")
+            throw ErreurMetier.NonAutorise("Seul le capitaine peut inscrire l'équipe")
         }
         if (repo.existsForTeam(tournamentId, teamId)) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "${team.name} est déjà inscrite")
+            throw ErreurMetier.Conflit("${team.name} est déjà inscrite")
         }
         val rosterSize = teams.members(teamId).count { it.role.literal != "substitute" }
         if (rosterSize < teamSize) {
-            throw ResponseStatusException(
-                HttpStatus.CONFLICT,
+            throw ErreurMetier.Conflit(
                 "Roster incomplet : $rosterSize joueur(s) pour un format ${teamSize}v$teamSize",
             )
         }
@@ -106,7 +103,7 @@ class RegistrationService(
         val tournament = requireOpen(tournamentId)
         val clean = name.trim()
         if (clean.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Le nom est obligatoire")
+            throw ErreurMetier.Invalide("Le nom est obligatoire")
         }
 
         val status = statusFor(tournamentId)
@@ -120,7 +117,7 @@ class RegistrationService(
 
     private fun requireOpen(tournamentId: UUID) = (
         tournaments.findById(tournamentId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Tournoi introuvable")
+            ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
         )
         .also {
             if (it.status !in listOf(
@@ -129,7 +126,7 @@ class RegistrationService(
                     TournamentStatus.check_in,
                 )
             ) {
-                throw ResponseStatusException(HttpStatus.CONFLICT, "Les inscriptions sont fermées")
+                throw ErreurMetier.Conflit("Les inscriptions sont fermées")
             }
         }
 
@@ -151,10 +148,10 @@ class RegistrationService(
     /** Seeding manuel (spec §4.2) : position de l'équipe dans le bracket. */
     fun setSeed(registrationId: UUID, seed: Int?) {
         if (seed != null && seed < 1) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Le seed doit être ≥ 1")
+            throw ErreurMetier.Invalide("Le seed doit être ≥ 1")
         }
         if (!repo.updateSeed(registrationId, seed)) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Inscription introuvable")
+            throw ErreurMetier.Introuvable("Inscription introuvable")
         }
     }
 
@@ -174,9 +171,9 @@ class RegistrationService(
 
     private fun transition(id: UUID, from: List<RegistrationStatus>, to: RegistrationStatus) {
         val current = repo.findStatus(id)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Inscription introuvable")
+            ?: throw ErreurMetier.Introuvable("Inscription introuvable")
         if (current !in from) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Transition impossible depuis « ${current.literal} »")
+            throw ErreurMetier.Conflit("Transition impossible depuis « ${current.literal} »")
         }
         repo.updateStatus(id, to)
     }
