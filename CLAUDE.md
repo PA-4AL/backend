@@ -95,6 +95,10 @@ par le brief de notation : mécanisme retenu, sémantique de `version = "N+"`, e
 marche à suivre pour livrer une v2 sans toucher au code v1. À lire avant tout
 changement incompatible de contrat.
 
+`docs/adr/` consigne les **décisions d'architecture** : un fichier court, daté et
+numéroté par décision. Un ADR est attendu pour un changement de modèle, l'ajout
+d'une dépendance externe ou un choix d'architecture — voir `docs/adr/README.md`.
+
 `docs/ETAT-DES-LIEUX.md` est le rapport d'écart entre le code et la spec (couverture
 par module, dettes techniques, priorités) — instantané daté, pas un document vivant.
 
