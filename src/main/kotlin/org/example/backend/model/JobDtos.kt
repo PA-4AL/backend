@@ -75,6 +75,23 @@ data class ImportTeamsRequest(
      * jusqu'ici, faute de pouvoir désigner la cible.
      */
     val tournamentId: UUID? = null,
+    /**
+     * Correspondance « colonne logique → lettre Excel », ex.
+     * `{"Équipe": "A", "Pseudo": "C", "Rang": "D"}`.
+     *
+     * Facultative. Sans elle, le worker retrouve les colonnes par leur en-tête,
+     * ce qui impose au fichier de porter exactement les libellés attendus. Un
+     * organisateur reçoit ses inscriptions dans le format de son choix : lui
+     * demander de renommer ses colonnes avant d'importer est une friction
+     * évitable dès lors qu'il peut désigner lesquelles utiliser.
+     */
+    val columns: Map<String, String>? = null,
+    /**
+     * La première ligne est-elle une ligne d'en-têtes ? Vrai par défaut.
+     * N'a de sens qu'avec [columns] : sans correspondance explicite, l'en-tête
+     * est le seul moyen d'identifier les colonnes.
+     */
+    val hasHeader: Boolean? = null,
 )
 
 data class JobDto(

@@ -66,10 +66,15 @@ class JobService(
         // `tournament_id` est ignoré par le worker (serde ignore l'inconnu) mais
         // conservé dans le payload : c'est ainsi qu'il revient à la matérialisation,
         // qui n'a pas d'autre moyen de savoir où inscrire les équipes.
+        // Les lettres de colonne sont validées par le worker, seul à savoir ce
+        // qu'il attend selon le type de tournoi. Les valider deux fois ferait
+        // dériver les messages d'erreur.
         val payload = mapOf(
             "tournament_type" to request.tournamentType,
             "file_base64" to request.fileBase64,
             "tournament_id" to request.tournamentId?.toString(),
+            "columns" to request.columns,
+            "has_header" to request.hasHeader,
         )
         return submit(JobType.team_import, TASK_IMPORT, payload, createdBy)
     }
