@@ -151,8 +151,8 @@ Liste tous les tournois, triés par `start_at` décroissant (NULL en dernier).
 Corps **optionnel** : `{ "format": "single_elim" }`
 
 Génère (ou régénère) l'arbre. Seeds manuels d'abord, puis les non-seedés mélangés ;
-byes résolus immédiatement ; matchs créés de la finale vers le round 1 pour chaîner
-`next_match_id`.
+byes résolus immédiatement. Les matchs sont insérés puis câblés en une seconde passe
+(`next_match_id`, `next_match_loser_id`).
 
 **200** → `BracketDto`
 **404** — `"Tournoi introuvable"`
@@ -167,9 +167,8 @@ Les libellés de tour renvoyés dépendent du format : « Quarts de finale » en
 « Journée 2 » en round robin, « Perdants — tour 1 » et « Grande finale » en
 élimination double.
 
-> Le type de la phase n'est vérifié **que si** `format` est fourni. Appelé sans
-> corps sur une phase `round_robin` ou `double_elim`, l'endpoint produit un bracket
-> à élimination simple sans rien signaler.
+> Sans corps, le format **déjà porté par la phase** est utilisé. Fournir `format`
+> change le type de la phase, de façon persistante.
 
 ### 6. `POST /api/v1/matches/{matchId}/score` — JWT
 
