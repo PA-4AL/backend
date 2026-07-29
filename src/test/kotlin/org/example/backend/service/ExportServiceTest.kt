@@ -12,8 +12,10 @@ import org.example.backend.database.tables.records.TournamentsRecord
 import org.example.backend.error.ErreurMetier
 import org.example.backend.model.JobDto
 import org.example.backend.repository.BracketRepository
+import org.example.backend.repository.JoueurRow
 import org.example.backend.repository.ParticipantRow
 import org.example.backend.repository.RegistrationInfo
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TournamentRepository
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -36,7 +38,8 @@ class ExportServiceTest {
     private val tournaments = mockk<TournamentRepository>(relaxed = true)
     private val bracket = mockk<BracketRepository>(relaxed = true)
     private val jobs = mockk<JobService>(relaxed = true)
-    private val service = ExportService(tournaments, bracket, jobs)
+    private val inscriptions = mockk<RegistrationRepository>(relaxed = true)
+    private val service = ExportService(tournaments, bracket, inscriptions, jobs)
 
     private val tournamentId = UUID.randomUUID()
     private val phaseId = UUID.randomUUID()
@@ -61,6 +64,11 @@ class ExportServiceTest {
         )
         every { bracket.findScores(phaseId) } returns emptyMap()
         every { bracket.findPhaseMatches(phaseId) } returns emptyList()
+        every { tournaments.findParticipantPlayers(tournamentId) } returns mapOf(
+            regA to listOf(JoueurRow("alice", "Diamant"), JoueurRow("bob", null)),
+            regB to listOf(JoueurRow("carol", "Platine")),
+        )
+        every { inscriptions.findFinalRanks(tournamentId) } returns emptyMap()
     }
 
     private fun deuxEquipes() = listOf(
@@ -154,6 +162,48 @@ class ExportServiceTest {
                 "statut émis inconnu du worker pour $statut",
             )
         }
+    }
+
+    @Test
+    fun `les joueurs de chaque equipe sont exportes`() {
+        // Sans eux, le classeur ne contenait qu'une colonne « Équipe » — le
+        // premier export réel l'a montré.
+        stub()
+        val teams = slot<List<Map<String, Any?>>>()
+        every {
+            jobs.submitTournamentExport(any(), any(), capture(teams), any(), any())
+        } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
+
+        service.soumettre(tournamentId, null)
+
+        val alpha = teams.captured.first { it["name"] == "Alpha" }
+
+        @Suppress("UNCHECKED_CAST")
+        val joueurs = alpha["players"] as List<Map<String, Any?>>
+        assertEquals(listOf("alice", "bob"), joueurs.map { it["username"] })
+        // La clé `rank` est attendue par le worker (colonne « Rang ») ; elle reste
+        // vide tant que le rang n'est pas persisté — mieux qu'une valeur inventée.
+        assertTrue(joueurs.all { it.containsKey("rank") })
+        // Le rang en jeu vient du fichier importé, désormais persisté ; vide quand
+        // il n'a jamais été renseigné, jamais inventé.
+        assertEquals(listOf("Diamant", ""), joueurs.map { it["rank"] })
+    }
+
+    @Test
+    fun `une equipe sans joueur connu reste exportee`() {
+        // Une équipe importée d'un fichier Excel n'est pas encore matérialisée en
+        // base : elle n'a aucun membre. L'omettre serait pire que l'exporter nue.
+        stub()
+        every { tournaments.findParticipantPlayers(tournamentId) } returns emptyMap()
+        val teams = slot<List<Map<String, Any?>>>()
+        every {
+            jobs.submitTournamentExport(any(), any(), capture(teams), any(), any())
+        } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
+
+        service.soumettre(tournamentId, null)
+
+        assertEquals(2, teams.captured.size)
+        assertEquals(emptyList<Any>(), teams.captured.first()["players"])
     }
 
     @Test

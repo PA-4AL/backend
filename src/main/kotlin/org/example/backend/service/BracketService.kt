@@ -14,8 +14,11 @@ import org.example.backend.model.MatchRowDto
 import org.example.backend.model.SlotDto
 import org.example.backend.model.TeamRefDto
 import org.example.backend.repository.BracketRepository
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TournamentRepository
+import org.example.backend.service.bracket.CalculClassement
 import org.example.backend.service.bracket.GenerateurBracket
+import org.example.backend.service.bracket.MatchJoue
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,7 +27,11 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
-class BracketService(private val tournaments: TournamentRepository, private val repo: BracketRepository) {
+class BracketService(
+    private val tournaments: TournamentRepository,
+    private val repo: BracketRepository,
+    private val inscriptions: RegistrationRepository,
+) {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val zone = ZoneId.of("Europe/Paris")
@@ -300,8 +307,38 @@ class BracketService(private val tournaments: TournamentRepository, private val 
             tournamentId,
             if (termine) TournamentStatus.finished else TournamentStatus.ongoing,
         )
+        // Le classement se fige à la fin, pas à chaque score : c'est un résultat,
+        // et il doit rester consultable et corrigeable après coup.
+        if (termine) figerLeClassement(tournamentId, match.phaseId!!)
 
         return getBracket(tournamentId)
+    }
+
+    /**
+     * Calcule et enregistre le classement final des inscriptions.
+     *
+     * Il était jusqu'ici recalculé à la volée par le worker à chaque export : donc
+     * invisible dans l'application, et impossible à corriger. Le voici persisté
+     * dans `registrations.final_rank`.
+     *
+     * Le tri est celui de [CalculClassement], délibérément identique à celui du
+     * worker : deux classements divergents seraient pires que pas de classement.
+     */
+    private fun figerLeClassement(tournamentId: UUID, phaseId: UUID) {
+        val participants = tournaments.findActiveParticipants(tournamentId)
+        val scores = repo.findScores(phaseId)
+        val joues = repo.findPhaseMatches(phaseId).mapNotNull { m ->
+            val a = m.participant1Id ?: return@mapNotNull null
+            val b = m.participant2Id ?: return@mapNotNull null
+            val score = scores[m.id] ?: return@mapNotNull null
+            MatchJoue(a, b, score.first, score.second)
+        }
+
+        CalculClassement.calculer(participants.map { it.registrationId }, joues)
+            .forEachIndexed { index, registrationId ->
+                inscriptions.updateFinalRank(registrationId, index + 1)
+            }
+        log.info("Classement figé pour le tournoi {} ({} inscriptions)", tournamentId, participants.size)
     }
 
     /** Le vainqueur du match en position p va dans le slot 1 (p impair) ou 2 du match suivant. */

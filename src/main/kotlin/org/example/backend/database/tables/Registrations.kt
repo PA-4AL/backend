@@ -124,6 +124,11 @@ open class Registrations(
      */
     val CREATED_AT: TableField<RegistrationsRecord, OffsetDateTime?> = createField(DSL.name("created_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "")
 
+    /**
+     * The column <code>public.registrations.final_rank</code>.
+     */
+    val FINAL_RANK: TableField<RegistrationsRecord, Int?> = createField(DSL.name("final_rank"), SQLDataType.INTEGER, this, "")
+
     private constructor(alias: Name, aliased: Table<RegistrationsRecord>?): this(alias, null, null, null, aliased, null, null)
     private constructor(alias: Name, aliased: Table<RegistrationsRecord>?, parameters: Array<Field<*>?>?): this(alias, null, null, null, aliased, parameters, null)
     private constructor(alias: Name, aliased: Table<RegistrationsRecord>?, where: Condition?): this(alias, null, null, null, aliased, null, where)
@@ -254,7 +259,8 @@ open class Registrations(
     val matchesWinnerIdFkey: MatchesPath
         get(): MatchesPath = matchesWinnerIdFkey()
     override fun getChecks(): List<Check<RegistrationsRecord>> = listOf(
-        Internal.createCheck(this, DSL.name("registration_one_participant"), "((num_nonnulls(team_id, user_id) = 1))", true)
+        Internal.createCheck(this, DSL.name("registration_one_participant"), "((num_nonnulls(team_id, user_id) = 1))", true),
+        Internal.createCheck(this, DSL.name("registrations_final_rank_positive"), "(((final_rank IS NULL) OR (final_rank >= 1)))", true)
     )
     override fun `as`(alias: String): Registrations = Registrations(DSL.name(alias), this)
     override fun `as`(alias: Name): Registrations = Registrations(alias, this)

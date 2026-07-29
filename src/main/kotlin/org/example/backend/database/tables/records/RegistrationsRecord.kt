@@ -47,6 +47,10 @@ open class RegistrationsRecord private constructor() : UpdatableRecordImpl<Regis
         set(value): Unit = set(6, value)
         get(): OffsetDateTime? = get(6) as OffsetDateTime?
 
+    open var finalRank: Int?
+        set(value): Unit = set(7, value)
+        get(): Int? = get(7) as Int?
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -56,7 +60,7 @@ open class RegistrationsRecord private constructor() : UpdatableRecordImpl<Regis
     /**
      * Create a detached, initialised RegistrationsRecord
      */
-    constructor(id: UUID? = null, tournamentId: UUID, teamId: UUID? = null, userId: UUID? = null, status: RegistrationStatus? = null, seed: Int? = null, createdAt: OffsetDateTime? = null): this() {
+    constructor(id: UUID? = null, tournamentId: UUID, teamId: UUID? = null, userId: UUID? = null, status: RegistrationStatus? = null, seed: Int? = null, createdAt: OffsetDateTime? = null, finalRank: Int? = null): this() {
         this.id = id
         this.tournamentId = tournamentId
         this.teamId = teamId
@@ -64,6 +68,7 @@ open class RegistrationsRecord private constructor() : UpdatableRecordImpl<Regis
         this.status = status
         this.seed = seed
         this.createdAt = createdAt
+        this.finalRank = finalRank
         resetChangedOnNotNull()
     }
 }

@@ -8,6 +8,11 @@ data class ParticipantDto(
     val status: String, // pending | confirmed | waitlist | checked_in | withdrawn | disqualified
     val seed: Int?,
     val registeredLabel: String,
+    /**
+     * Classement final dans le tournoi, 1 = vainqueur. `null` tant que le tournoi
+     * n'est pas terminé — figé par `BracketService` à la saisie du dernier score.
+     */
+    val finalRank: Int? = null,
 )
 
 data class PendingRegistrationDto(

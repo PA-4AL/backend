@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 30/07/2026 (29 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket, placement manuel, export .xlsx)
+> **Dernière mise à jour :** 30/07/2026 (29 endpoints en v1, + 1 endpoint interne, matérialisation des imports, rangs et classement final)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -462,6 +462,27 @@ React**, pas pour refléter les tables : ils contiennent des chaînes déjà for
 Architecture et contrat de messages : `../../infra/docs/ARCHITECTURE.md`.
 
 ### 26. `POST /api/v1/teams/import` — JWT (organizer/admin)
+
+Corps : `{ "tournamentType": "esport_5v5", "fileBase64": "…", "tournamentId": "…" }`
+
+`tournamentId` est **facultatif mais déterminant** : avec lui, les équipes du
+fichier sont inscrites dans ce tournoi et apparaîtront donc dans son bracket et
+son export. Sans lui, elles sont créées mais n'appartiennent à aucun tournoi.
+
+**Ce que l'import écrit réellement en base** (spec §6.1.3) : une équipe par ligne
+`Équipe`, un **joueur fantôme** par `Pseudo` (utilisateur sans compte Keycloak,
+rattachable plus tard par email), le **rang en jeu** de chaque joueur dans
+`team_members.rank`, et l'inscription si un tournoi est visé. Le premier joueur
+listé devient capitaine — le fichier ne le désigne pas, et une équipe sans
+capitaine ne pourrait plus être administrée.
+
+L'opération est **idempotente** : Pub/Sub garantit au moins une livraison, donc
+équipes et joueurs sont retrouvés par nom et par pseudo avant d'être créés. Une
+redélivrance met les rangs à jour sans rien dupliquer.
+
+> Un échec de matérialisation **ne fait pas échouer le job** : le fichier a bien
+> été traité, et faire réessayer Pub/Sub relancerait le parsing sans corriger la
+> cause. L'erreur est consignée dans `result.materialisation.erreur`.
 
 Soumet un fichier Excel de rosters. La réponse est **immédiate** : le traitement
 est asynchrone, le client suit son avancement via l'endpoint 27.

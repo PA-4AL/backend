@@ -27,6 +27,7 @@ class RegistrationService(
             status = it.status.literal,
             seed = it.seed,
             registeredLabel = Display.relativeTime(it.createdAt),
+            finalRank = it.finalRank,
         )
     }
 

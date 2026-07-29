@@ -28,7 +28,8 @@ class JobServiceTest {
     private val jobs = mockk<JobRepository>(relaxed = true)
     private val publisher = mockk<PubSubPublisher>(relaxed = true)
     private val mapper = JsonMapper.builder().build()
-    private val service = JobService(jobs, publisher, mapper)
+    private val imports = mockk<ImportService>(relaxed = true)
+    private val service = JobService(jobs, publisher, mapper, imports)
 
     private val jobId = UUID.randomUUID()
 

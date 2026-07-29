@@ -66,6 +66,15 @@ data class ImportTeamsRequest(
     val tournamentType: String,
     /** Contenu du fichier .xlsx encodé en base64 (limite Pub/Sub : 10 Mo par message). */
     val fileBase64: String,
+    /**
+     * Tournoi où inscrire les équipes importées.
+     *
+     * Facultatif : sans lui, les équipes et les joueurs sont bien créés mais
+     * n'apparaissent dans aucun tournoi — donc pas dans un export, qui est
+     * toujours celui d'un tournoi. C'est le comportement qu'avait l'import
+     * jusqu'ici, faute de pouvoir désigner la cible.
+     */
+    val tournamentId: UUID? = null,
 )
 
 data class JobDto(

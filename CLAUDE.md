@@ -129,6 +129,18 @@ Il n'y a pas de synchronisation Keycloak → BDD. Chaque endpoint authentifié a
   de l'endpoint de génération reste accepté (compatibilité) mais le frontend ne
   l'envoie plus.
 
+  **Import matérialisé** : `ImportService` transforme le résultat du worker en
+  données réelles — équipes, joueurs fantômes (spec §6.1.3), rangs en jeu dans
+  `team_members.rank`, et inscription si `tournamentId` était fourni. Idempotent
+  par obligation : Pub/Sub redélivre. Avant, `applyWorkerResponse` n'archivait que
+  du JSON, donc un import réussi ne laissait aucune trace exploitable.
+
+  **Classement final** : `registrations.final_rank`, figé par `BracketService` à la
+  saisie du dernier score. Le tri vit dans `service/bracket/CalculClassement`,
+  objet pur, et reproduit **volontairement** celui du worker (points, puis
+  différence, puis seed) — deux classements divergents seraient pires que pas de
+  classement.
+
   **Export .xlsx** : `ExportService` assemble le payload et délègue à `JobService`
   — celui-ci ne connaît que la file, pas le modèle des tournois. Le contrat est
   celui du worker (`snake_case`, trois statuts seulement), verrouillé par

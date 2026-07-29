@@ -32,6 +32,7 @@ class JobService(
     private val jobs: JobRepository,
     private val publisher: PubSubPublisher,
     private val mapper: ObjectMapper,
+    private val imports: ImportService,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -62,9 +63,13 @@ class JobService(
             )
         }
 
+        // `tournament_id` est ignoré par le worker (serde ignore l'inconnu) mais
+        // conservé dans le payload : c'est ainsi qu'il revient à la matérialisation,
+        // qui n'a pas d'autre moyen de savoir où inscrire les équipes.
         val payload = mapOf(
             "tournament_type" to request.tournamentType,
             "file_base64" to request.fileBase64,
+            "tournament_id" to request.tournamentId?.toString(),
         )
         return submit(JobType.team_import, TASK_IMPORT, payload, createdBy)
     }
@@ -132,6 +137,12 @@ class JobService(
         when (response.status) {
             "success" -> {
                 response.data?.let { jobs.saveResult(jobId, mapper.writeValueAsString(it)) }
+                // Un import doit devenir des données, pas seulement un JSON archivé
+                // dans le job : c'est ici que naissent les équipes, les joueurs
+                // fantômes (spec §6.1.3) et leurs rangs.
+                if (job.type == JobType.team_import) {
+                    materialiserImport(jobId, response.data)
+                }
                 jobs.markDone(jobId)
                 log.info("Job {} terminé avec succès", jobId)
             }
@@ -154,6 +165,45 @@ class JobService(
                 "Statut de réponse inattendu : ${response.status}",
             )
         }
+    }
+
+    /**
+     * Traduit le résultat d'un import en données réelles.
+     *
+     * Un échec de matérialisation **ne fait pas échouer le job** : le fichier a
+     * bien été traité, et faire réessayer Pub/Sub relancerait le parsing sans
+     * corriger la cause. L'erreur est journalisée et consignée dans le job, où
+     * l'organisateur peut la lire.
+     */
+    private fun materialiserImport(jobId: UUID, data: Map<String, Any?>?) {
+        @Suppress("UNCHECKED_CAST")
+        val equipes = data?.get("teams") as? List<Map<String, Any?>>
+        if (equipes.isNullOrEmpty()) {
+            log.warn("Import {} sans équipe à matérialiser", jobId)
+            return
+        }
+        val tournamentId = tournoiCible(jobId)
+        runCatching { imports.materialiser(tournamentId, equipes) }
+            .onFailure { e ->
+                log.error("Matérialisation de l'import {} en échec", jobId, e)
+                jobs.saveResult(
+                    jobId,
+                    mapper.writeValueAsString(
+                        mapOf("materialisation" to mapOf("erreur" to (e.message ?: "échec inconnu"))),
+                    ),
+                )
+            }
+    }
+
+    /** Tournoi visé par l'import, déposé dans le payload à la soumission. */
+    private fun tournoiCible(jobId: UUID): UUID? {
+        val payload = jobs.findById(jobId)?.payload ?: return null
+
+        @Suppress("UNCHECKED_CAST")
+        val map = runCatching {
+            mapper.readValue(payload, Map::class.java) as Map<String, Any?>
+        }.getOrDefault(emptyMap())
+        return (map["tournament_id"] as? String)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
     }
 
     fun get(id: UUID): JobDto {

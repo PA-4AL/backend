@@ -10,6 +10,7 @@ import org.example.backend.database.tables.records.MatchesRecord
 import org.example.backend.database.tables.records.PhasesRecord
 import org.example.backend.error.ErreurMetier
 import org.example.backend.repository.BracketRepository
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TournamentRepository
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -25,7 +26,8 @@ class BracketServiceTest {
 
     private val tournaments = mockk<TournamentRepository>(relaxed = true)
     private val repo = mockk<BracketRepository>(relaxed = true)
-    private val service = BracketService(tournaments, repo)
+    private val inscriptions = mockk<RegistrationRepository>(relaxed = true)
+    private val service = BracketService(tournaments, repo, inscriptions)
 
     private val phaseId = UUID.randomUUID()
     private val tournamentId = UUID.randomUUID()

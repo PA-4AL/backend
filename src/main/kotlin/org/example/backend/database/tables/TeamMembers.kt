@@ -100,6 +100,11 @@ open class TeamMembers(
      */
     val JOINED_AT: TableField<TeamMembersRecord, OffsetDateTime?> = createField(DSL.name("joined_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "")
 
+    /**
+     * The column <code>public.team_members.rank</code>.
+     */
+    val RANK: TableField<TeamMembersRecord, String?> = createField(DSL.name("rank"), SQLDataType.VARCHAR, this, "")
+
     private constructor(alias: Name, aliased: Table<TeamMembersRecord>?): this(alias, null, null, null, aliased, null, null)
     private constructor(alias: Name, aliased: Table<TeamMembersRecord>?, parameters: Array<Field<*>?>?): this(alias, null, null, null, aliased, parameters, null)
     private constructor(alias: Name, aliased: Table<TeamMembersRecord>?, where: Condition?): this(alias, null, null, null, aliased, null, where)
