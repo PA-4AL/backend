@@ -6,6 +6,7 @@ import org.example.backend.error.ErreurTechnique
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import java.net.URI
 import java.util.Base64
 
 /**
@@ -49,7 +50,7 @@ class PubSubPublisher(private val props: PubSubProperties) {
         return try {
             credentials.refreshIfExpired()
             val response = rest.post()
-                .uri("https://pubsub.googleapis.com/v1/{topic}:publish", props.topicDemands)
+                .uri(uriDePublication(props.topicDemands))
                 .header("Authorization", "Bearer ${credentials.accessToken.tokenValue}")
                 .body(body)
                 .retrieve()
@@ -70,4 +71,23 @@ class PubSubPublisher(private val props: PubSubProperties) {
     }
 
     data class PublishResponse(val messageIds: List<String>? = null)
+
+    companion object {
+        /**
+         * URL de publication d'un topic.
+         *
+         * Construite en [URI] et **non** par un gabarit `{topic}` : une variable
+         * de gabarit voit ses `/` encodés en `%2F`, et le nom d'un topic Pub/Sub
+         * est un chemin complet (`projects/…/topics/…`). L'URL produite ne
+         * correspondait alors à aucune route de l'API, qui répondait un 404 HTML :
+         *
+         *     /v1/projects%2Fpa-tournament-4al%2Ftopics%2Fpa-prod-demandes:publish
+         *
+         * Le défaut est resté invisible longtemps parce que **rien n'empruntait
+         * ce chemin en production** : l'import Excel n'avait jamais été lancé, et
+         * la validation de la chaîne s'était faite en injectant un message avec
+         * `gcloud`, ce qui ne teste que le sens worker → backend.
+         */
+        fun uriDePublication(topic: String): URI = URI.create("https://pubsub.googleapis.com/v1/$topic:publish")
+    }
 }
