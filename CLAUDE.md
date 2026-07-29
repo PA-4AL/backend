@@ -124,6 +124,16 @@ Il n'y a pas de synchronisation Keycloak → BDD. Chaque endpoint authentifié a
   l'être, donc plus être joué. Piège associé : les byes sont marqués `finished` à
   la génération, un match terminé ne prouve donc pas qu'on a joué (`aDesResultats`).
 
+  **Le format est choisi à la création** du tournoi et porté par la phase. L'écran
+  Bracket l'applique sans le redemander : un seul endroit décide. Le champ `format`
+  de l'endpoint de génération reste accepté (compatibilité) mais le frontend ne
+  l'envoie plus.
+
+  **Export .xlsx** : `ExportService` assemble le payload et délègue à `JobService`
+  — celui-ci ne connaît que la file, pas le modèle des tournois. Le contrat est
+  celui du worker (`snake_case`, trois statuts seulement), verrouillé par
+  `ExportServiceTest`.
+
   **Placement manuel** : `echangerEmplacements(match, slot, match, slot)` échange
   deux emplacements d'une même phase, refuse tout match déjà joué et tout doublon
   dans un match. Le seeding d'avant-génération, lui, passe par
