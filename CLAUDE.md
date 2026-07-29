@@ -117,4 +117,15 @@ Il n'y a pas de synchronisation Keycloak → BDD. Chaque endpoint authentifié a
 - **`registrations` est l'unité de participation** : un match oppose deux `registration_id`, jamais un user ou une team directement. Le nom affiché est résolu par `COALESCE(teams.name, users.pseudo)`.
 - **`phases`** porte le jeu et le format, pas le tournoi : un tournoi multi-jeu a une phase par jeu (`TournamentRepository.create` en crée une par entrée de `req.games`). La plupart des services ne lisent aujourd'hui que `findFirstPhase()`.
 - **Bracket** (`BracketService`) : élimination simple, **élimination double** et **round robin** ; le `swiss` est refusé (appariements dépendants du classement, cf. `docs/adr/0008`). La structure est calculée par `service/bracket/GenerateurBracket`, un objet **pur** sans base ni Spring — c'est là qu'il faut regarder et tester toute évolution d'algorithme. La génération insère les matchs puis les câble en une seconde passe (nécessaire en double élimination, où un match du tableau des vainqueurs pointe vers un match du tableau des perdants créé après lui), place les seeds selon le placement standard (1 vs n, 2 à l'opposé) et résout les byes immédiatement. `next_match_loser_id` porte la descente du perdant, propagée par `reportScore`.
+
+  **Quand peut-on générer ?** À tout moment tant qu'aucun résultat n'a été saisi
+  — le statut du tournoi n'intervient pas. Fonder la règle sur le statut créait un
+  cul-de-sac : un tournoi passé « en cours » sans arbre généré ne pouvait plus
+  l'être, donc plus être joué. Piège associé : les byes sont marqués `finished` à
+  la génération, un match terminé ne prouve donc pas qu'on a joué (`aDesResultats`).
+
+  **Placement manuel** : `echangerEmplacements(match, slot, match, slot)` échange
+  deux emplacements d'une même phase, refuse tout match déjà joué et tout doublon
+  dans un match. Le seeding d'avant-génération, lui, passe par
+  `RegistrationRepository.updateSeed`.
 - Saisie de score : `reportScore` propage le vainqueur via `fillSlot` (slot 1 si `position` impair) et fait basculer le tournoi en `ongoing`, ou `finished` quand le match n'a pas de `next_match_id`.

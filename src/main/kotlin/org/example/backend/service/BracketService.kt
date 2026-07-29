@@ -50,21 +50,22 @@ class BracketService(private val tournaments: TournamentRepository, private val 
 
     @Transactional
     fun generate(tournamentId: UUID, format: String? = null): BracketDto {
-        val tournament = tournaments.findById(tournamentId)
+        tournaments.findById(tournamentId)
             ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
-
-        // Re-génération possible tant que le tournoi n'a pas démarré (spec §4.2)
-        if (tournament.status !in listOf(
-                TournamentStatus.draft,
-                TournamentStatus.registration,
-                TournamentStatus.check_in,
-            )
-        ) {
-            throw ErreurMetier.Conflit("Le tournoi a déjà démarré")
-        }
 
         val phase = tournaments.findFirstPhase(tournamentId)
             ?: throw ErreurMetier.Conflit("Le tournoi n'a aucune phase")
+
+        // Le statut n'est pas le bon critère. Un tournoi peut être « en cours »
+        // sans qu'aucun match n'ait jamais été saisi — c'était alors un
+        // cul-de-sac : l'arbre ne pouvait plus être généré, donc le tournoi ne
+        // pouvait plus être joué. Ce qu'il faut protéger, c'est la perte de
+        // résultats, pas un statut.
+        if (aDesResultats(phase.id!!)) {
+            throw ErreurMetier.Conflit(
+                "Des résultats ont déjà été saisis : régénérer l'arbre les effacerait",
+            )
+        }
 
         // Format demandé à la génération, ou celui déjà porté par la phase.
         val type = if (format != null) {
@@ -157,6 +158,98 @@ class BracketService(private val tournaments: TournamentRepository, private val 
             }
         }
 
+        return getBracket(tournamentId)
+    }
+
+    /**
+     * Un résultat a-t-il déjà été saisi dans cette phase ?
+     *
+     * Attention au piège : la génération résout les byes en marquant des matchs
+     * `finished` d'emblée. Un match terminé n'est donc pas la preuve qu'on a
+     * joué. Le critère est un match **à deux participants** doté d'un vainqueur,
+     * ou l'existence d'un score enregistré.
+     */
+    private fun aDesResultats(phaseId: UUID): Boolean {
+        if (repo.findScores(phaseId).isNotEmpty()) return true
+        return repo.findPhaseMatches(phaseId).any {
+            it.participant1Id != null && it.participant2Id != null && it.winnerId != null
+        }
+    }
+
+    /* ------------------------------------------------------------
+       Placement manuel des participants
+       ------------------------------------------------------------ */
+
+    /**
+     * Échange les deux participants de deux emplacements de l'arbre.
+     *
+     * Le seeding automatique ne convient pas toujours : on veut pouvoir éviter
+     * que deux équipes d'un même club se rencontrent au premier tour, ou refaire
+     * un tirage à la main. Un emplacement est désigné par un match et un slot
+     * (1 ou 2) — la même désignation que celle affichée à l'écran.
+     *
+     * Un emplacement vide est accepté : échanger avec du vide **déplace** le
+     * participant, ce qui évite d'avoir deux opérations pour un seul geste.
+     *
+     * @throws ErreurMetier.Conflit si l'un des deux matchs est déjà joué, ou si
+     *   l'échange mettrait deux fois le même participant dans un match.
+     */
+    @Transactional
+    fun echangerEmplacements(matchA: UUID, slotA: Int, matchB: UUID, slotB: Int): BracketDto {
+        if (slotA !in 1..2 || slotB !in 1..2) {
+            throw ErreurMetier.Invalide("Un slot vaut 1 ou 2")
+        }
+        if (matchA == matchB && slotA == slotB) {
+            throw ErreurMetier.Invalide("Les deux emplacements sont identiques")
+        }
+
+        val a = repo.findMatch(matchA) ?: throw ErreurMetier.Introuvable("Match introuvable")
+        val b = repo.findMatch(matchB) ?: throw ErreurMetier.Introuvable("Match introuvable")
+        if (a.phaseId != b.phaseId) {
+            throw ErreurMetier.Invalide("Les deux emplacements doivent être dans la même phase")
+        }
+
+        // Déplacer un participant hors d'un match joué invaliderait son résultat.
+        listOf(a, b).forEach { m ->
+            if (m.status == MatchStatus.finished || m.winnerId != null) {
+                throw ErreurMetier.Conflit("Un match déjà joué ne peut pas être réorganisé")
+            }
+        }
+
+        val occupantA = if (slotA == 1) a.participant1Id else a.participant2Id
+        val occupantB = if (slotB == 1) b.participant1Id else b.participant2Id
+        if (occupantA == null && occupantB == null) {
+            throw ErreurMetier.Invalide("Les deux emplacements sont vides")
+        }
+
+        // Le cas de deux slots du même match se calcule à part : les deux
+        // écritures portent sur la même ligne, un `setParticipants` par match
+        // écraserait la première.
+        if (matchA == matchB) {
+            repo.setParticipants(matchA, occupantB, occupantA)
+        } else {
+            val autreDeA = if (slotA == 1) a.participant2Id else a.participant1Id
+            val autreDeB = if (slotB == 1) b.participant2Id else b.participant1Id
+            if (occupantB != null && occupantB == autreDeA) {
+                throw ErreurMetier.Conflit("Ce participant est déjà présent dans le match d'arrivée")
+            }
+            if (occupantA != null && occupantA == autreDeB) {
+                throw ErreurMetier.Conflit("Ce participant est déjà présent dans le match d'arrivée")
+            }
+            repo.setParticipants(
+                matchA,
+                if (slotA == 1) occupantB else autreDeA,
+                if (slotA == 1) autreDeA else occupantB,
+            )
+            repo.setParticipants(
+                matchB,
+                if (slotB == 1) occupantA else autreDeB,
+                if (slotB == 1) autreDeB else occupantA,
+            )
+        }
+
+        val tournamentId = repo.findPhaseTournamentId(a.phaseId!!)
+            ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
         return getBracket(tournamentId)
     }
 
