@@ -24,18 +24,64 @@ class BracketRepository(private val dsl: DSLContext) {
         dsl.deleteFrom(MATCHES).where(MATCHES.PHASE_ID.eq(phaseId)).execute()
     }
 
-    fun insertMatch(phaseId: UUID, round: Int, position: Int, bestOf: Int, nextMatchId: UUID?): UUID =
-        dsl.insertInto(MATCHES)
-            .set(MATCHES.PHASE_ID, phaseId)
-            .set(MATCHES.ROUND, round)
-            .set(MATCHES.POSITION, position)
-            .set(MATCHES.BRACKET, BracketType.winner)
-            .set(MATCHES.BEST_OF, bestOf)
-            .set(MATCHES.STATUS, MatchStatus.pending)
-            .set(MATCHES.NEXT_MATCH_ID, nextMatchId)
-            .returning(MATCHES.ID)
-            .fetchOne()!!
-            .get(MATCHES.ID)!!
+    fun insertMatch(
+        phaseId: UUID,
+        round: Int,
+        position: Int,
+        bestOf: Int,
+        nextMatchId: UUID?,
+        bracket: BracketType = BracketType.winner,
+        nextMatchLoserId: UUID? = null,
+    ): UUID = dsl.insertInto(MATCHES)
+        .set(MATCHES.PHASE_ID, phaseId)
+        .set(MATCHES.ROUND, round)
+        .set(MATCHES.POSITION, position)
+        .set(MATCHES.BRACKET, bracket)
+        .set(MATCHES.BEST_OF, bestOf)
+        .set(MATCHES.STATUS, MatchStatus.pending)
+        .set(MATCHES.NEXT_MATCH_ID, nextMatchId)
+        .set(MATCHES.NEXT_MATCH_LOSER_ID, nextMatchLoserId)
+        .returning(MATCHES.ID)
+        .fetchOne()!!
+        .get(MATCHES.ID)!!
+
+    /**
+     * Renseigne les liens de sortie après coup.
+     *
+     * Nécessaire pour l'élimination double : un match du tableau des vainqueurs
+     * envoie son perdant dans le tableau des perdants, qui est créé après lui. On
+     * insère donc d'abord, on relie ensuite.
+     */
+    fun updateLiens(matchId: UUID, nextMatchId: UUID?, nextMatchLoserId: UUID?): Int = dsl.update(MATCHES)
+        .set(MATCHES.NEXT_MATCH_ID, nextMatchId)
+        .set(MATCHES.NEXT_MATCH_LOSER_ID, nextMatchLoserId)
+        .where(MATCHES.ID.eq(matchId))
+        .execute()
+
+    /**
+     * Place un participant dans le premier slot libre d'un match.
+     *
+     * Utilisé pour les descentes en élimination double : le perdant d'un match du
+     * tableau des vainqueurs rejoint un match du tableau des perdants dont l'autre
+     * slot est déjà occupé (tour de bascule) ou encore vide (premier tour, où deux
+     * perdants s'affrontent).
+     *
+     * Renvoie `false` si les deux slots sont déjà pris — signe d'une incohérence de
+     * chaînage, que l'appelant doit journaliser.
+     */
+    fun remplirPremierSlotLibre(matchId: UUID, registrationId: UUID): Boolean {
+        val match = findMatch(matchId) ?: return false
+        val champ = when {
+            match.participant1Id == null -> MATCHES.PARTICIPANT1_ID
+            match.participant2Id == null -> MATCHES.PARTICIPANT2_ID
+            else -> return false
+        }
+        dsl.update(MATCHES)
+            .set(champ, registrationId)
+            .where(MATCHES.ID.eq(matchId))
+            .execute()
+        return true
+    }
 
     fun setParticipants(matchId: UUID, participant1: UUID?, participant2: UUID?) {
         dsl.update(MATCHES)
