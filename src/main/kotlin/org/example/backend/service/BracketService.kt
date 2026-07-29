@@ -1,5 +1,6 @@
 package org.example.backend.service
 
+import org.example.backend.database.enums.BracketType
 import org.example.backend.database.enums.MatchStatus
 import org.example.backend.database.enums.PhaseType
 import org.example.backend.database.enums.TournamentStatus
@@ -14,6 +15,8 @@ import org.example.backend.model.SlotDto
 import org.example.backend.model.TeamRefDto
 import org.example.backend.repository.BracketRepository
 import org.example.backend.repository.TournamentRepository
+import org.example.backend.service.bracket.GenerateurBracket
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.ZoneId
@@ -23,6 +26,7 @@ import java.util.UUID
 @Service
 class BracketService(private val tournaments: TournamentRepository, private val repo: BracketRepository) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
     private val zone = ZoneId.of("Europe/Paris")
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -62,16 +66,21 @@ class BracketService(private val tournaments: TournamentRepository, private val 
         val phase = tournaments.findFirstPhase(tournamentId)
             ?: throw ErreurMetier.Conflit("Le tournoi n'a aucune phase")
 
-        // Format choisi au moment de la génération (V1 : élimination simple)
-        if (format != null) {
-            val type = PhaseType.entries.firstOrNull { it.literal == format }
+        // Format demandé à la génération, ou celui déjà porté par la phase.
+        val type = if (format != null) {
+            val demande = PhaseType.entries.firstOrNull { it.literal == format }
                 ?: throw ErreurMetier.Invalide("Format inconnu : $format")
-            if (type != PhaseType.single_elim) {
+            if (demande == PhaseType.swiss) {
+                // Le système suisse apparie selon le classement après chaque tour :
+                // il n'existe pas d'arbre à pré-générer (docs/adr/0008).
                 throw ErreurMetier.Invalide(
-                    "Format « $format » pas encore supporté — élimination simple uniquement en V1",
+                    "Le format suisse se génère tour par tour et n'est pas encore disponible",
                 )
             }
-            tournaments.updatePhaseType(phase.id!!, type)
+            tournaments.updatePhaseType(phase.id!!, demande)
+            demande
+        } else {
+            phase.type
         }
 
         // Seeding : les seeds manuels d'abord, puis les non-seedés mélangés (spec : aléatoire ou manuel)
@@ -83,53 +92,68 @@ class BracketService(private val tournaments: TournamentRepository, private val 
             participants.filter { it.seed == null }.shuffled()
         ordered.forEachIndexed { i, p -> repo.updateSeed(p.registrationId, i + 1) }
 
-        val n = ordered.size
-        var size = 1
-        while (size < n) size *= 2
-        val totalRounds = Integer.numberOfTrailingZeros(size)
-
-        repo.deletePhaseMatches(phase.id!!)
-
-        // Création de la finale vers le premier round pour chaîner next_match_id
-        var nextRoundIds: List<UUID> = emptyList()
-        var firstRoundIds: List<UUID> = emptyList()
-        for (round in totalRounds downTo 1) {
-            val count = size shr round
-            val ids = (1..count).map { position ->
-                repo.insertMatch(
-                    phaseId = phase.id!!,
-                    round = round,
-                    position = position,
-                    bestOf = phase.defaultBo ?: 1,
-                    nextMatchId = nextRoundIds.getOrNull((position - 1) / 2),
-                )
+        // La structure est calculée par un générateur pur (aucune base), puis
+        // persistée : les clés locales des matchs sont traduites en identifiants.
+        val planifies = when (type) {
+            PhaseType.single_elim -> GenerateurBracket.eliminationSimple(ordered.size)
+            PhaseType.double_elim -> {
+                if (ordered.size < 4) {
+                    throw ErreurMetier.Conflit("L'élimination double exige au moins 4 participants")
+                }
+                GenerateurBracket.eliminationDouble(ordered.size)
             }
-            if (round == 1) firstRoundIds = ids
-            nextRoundIds = ids
+            PhaseType.round_robin -> GenerateurBracket.roundRobin(ordered.size)
+            PhaseType.swiss -> throw ErreurMetier.Invalide(
+                "Le format suisse se génère tour par tour et n'est pas encore disponible",
+            )
         }
 
-        // Placement des participants au premier round + gestion des byes
-        val slots = seedSlots(size)
-        val firstRound = repo.findPhaseMatches(phase.id!!).filter { it.round == 1 }
-        firstRoundIds.forEachIndexed { i, matchId ->
-            val seedA = slots[2 * i]
-            val seedB = slots[2 * i + 1]
-            val regA = ordered.getOrNull(seedA - 1)?.registrationId
-            val regB = ordered.getOrNull(seedB - 1)?.registrationId
+        repo.deletePhaseMatches(phase.id!!)
+        val bo = phase.defaultBo ?: 1
+
+        // Insertion sans les liens (les cibles n'existent pas encore), puis
+        // câblage : indispensable en élimination double, où un match du tableau
+        // des vainqueurs pointe vers un match du tableau des perdants créé après.
+        val idParCle = planifies.associate { plan ->
+            plan.cle to repo.insertMatch(
+                phaseId = phase.id!!,
+                round = plan.round,
+                position = plan.position,
+                bestOf = bo,
+                nextMatchId = null,
+                bracket = plan.bracket,
+            )
+        }
+        planifies.forEach { plan ->
+            if (plan.vainqueurVers != null || plan.perdantVers != null) {
+                repo.updateLiens(
+                    matchId = idParCle.getValue(plan.cle),
+                    nextMatchId = plan.vainqueurVers?.let { idParCle[it] },
+                    nextMatchLoserId = plan.perdantVers?.let { idParCle[it] },
+                )
+            }
+        }
+
+        // Placement des participants : le générateur indique les seeds, on les
+        // traduit en inscriptions. Un seed au-delà du nombre réel est un bye.
+        val parSeed = ordered.withIndex().associate { (i, p) -> i + 1 to p.registrationId }
+        planifies.filter { it.seedA != null || it.seedB != null }.forEach { plan ->
+            val regA = plan.seedA?.let { parSeed[it] }
+            val regB = plan.seedB?.let { parSeed[it] }
+            val matchId = idParCle.getValue(plan.cle)
             repo.setParticipants(matchId, regA, regB)
 
-            // Bye : un seul participant → qualification automatique (spec §4.2)
-            val winner = if (regA != null && regB == null) {
-                regA
-            } else if (regA == null && regB != null) {
-                regB
-            } else {
-                null
+            // Bye : un seul participant présent → qualification immédiate (spec §4.2)
+            val seul = when {
+                regA != null && regB == null -> regA
+                regA == null && regB != null -> regB
+                else -> null
             }
-            if (winner != null) {
-                repo.setResult(matchId, winner, MatchStatus.finished)
-                val match = firstRound.first { it.id == matchId }
-                propagateWinner(match.position!!, match.nextMatchId, winner)
+            if (seul != null) {
+                repo.setResult(matchId, seul, MatchStatus.finished)
+                plan.vainqueurVers?.let { cible ->
+                    repo.remplirPremierSlotLibre(idParCle.getValue(cible), seul)
+                }
             }
         }
 
@@ -158,18 +182,31 @@ class BracketService(private val tournaments: TournamentRepository, private val 
 
         repo.replaceScore(matchId, scoreA, scoreB)
         val winner = if (scoreA > scoreB) p1 else p2
+        val loser = if (winner == p1) p2 else p1
         repo.setResult(matchId, winner, MatchStatus.finished)
         propagateWinner(match.position!!, match.nextMatchId, winner)
+
+        // Élimination double : le perdant n'est pas éliminé, il descend dans le
+        // tableau des perdants. Le slot dépend de qui est déjà arrivé.
+        match.nextMatchLoserId?.let { cible ->
+            if (!repo.remplirPremierSlotLibre(cible, loser)) {
+                log.warn("Aucun slot libre dans le match {} pour le perdant de {}", cible, matchId)
+            }
+        }
 
         val tournamentId = repo.findPhaseTournamentId(match.phaseId!!)
             ?: throw ErreurMetier.Conflit("Phase orpheline")
 
-        // Finale jouée → le tournoi est terminé (cycle de vie spec §4.1)
-        if (match.nextMatchId == null) {
-            repo.setTournamentStatus(tournamentId, TournamentStatus.finished)
-        } else {
-            repo.setTournamentStatus(tournamentId, TournamentStatus.ongoing)
-        }
+        // Fin de tournoi : selon le format, ce n'est pas le même critère.
+        //  - arbre (simple, double) : le match sans suite est la finale
+        //  - round robin : il n'y a pas de finale, on attend la dernière rencontre
+        val restants = repo.findPhaseMatches(match.phaseId!!)
+            .count { it.status != MatchStatus.finished && it.status != MatchStatus.forfeited }
+        val termine = if (match.bracket == BracketType.group) restants == 0 else match.nextMatchId == null
+        repo.setTournamentStatus(
+            tournamentId,
+            if (termine) TournamentStatus.finished else TournamentStatus.ongoing,
+        )
 
         return getBracket(tournamentId)
     }
@@ -195,22 +232,67 @@ class BracketService(private val tournaments: TournamentRepository, private val 
         val colorBySeed = infos.values.sortedBy { it.seed ?: Int.MAX_VALUE }
             .mapIndexed { i, info -> info.registrationId to Display.colorFor(i) }
             .toMap()
-        val totalRounds = matches.maxOf { it.round!! }
+        // Les libellés dépendent du format : « Demi-finales » n'a aucun sens dans
+        // un round robin, et un tableau des perdants doit être annoncé comme tel.
+        val parTableau = matches.groupBy { it.bracket ?: BracketType.winner }
+        val toursW = parTableau[BracketType.winner]?.map { it.round!! }?.distinct()?.sorted() ?: emptyList()
+        val toursL = parTableau[BracketType.loser]?.map { it.round!! }?.distinct()?.sorted() ?: emptyList()
+        val doubleElim = toursL.isNotEmpty()
 
         val rounds = matches.groupBy { it.round!! }.toSortedMap().map { (round, roundMatches) ->
-            val (label, codePrefix) = Display.roundLabel(round, totalRounds)
+            val tableau = roundMatches.first().bracket ?: BracketType.winner
+            val (label, codePrefix) = when (tableau) {
+                BracketType.group -> "Journée $round" to "J$round-"
+                BracketType.grand_final -> "Grande finale" to "GF"
+                BracketType.loser -> {
+                    val rang = toursL.indexOf(round) + 1
+                    val dernier = rang == toursL.size
+                    (if (dernier) "Finale des perdants" else "Perdants — tour $rang") to "LB$rang-"
+                }
+                BracketType.winner -> {
+                    val rang = toursW.indexOf(round) + 1
+                    val (base, prefixe) = Display.roundLabel(rang, toursW.size)
+                    // En double élimination, la « finale » du tableau des vainqueurs
+                    // n'est pas la finale du tournoi : la grande finale l'est.
+                    val ajuste = if (doubleElim && rang == toursW.size) "Finale des vainqueurs" else base
+                    ajuste to prefixe
+                }
+            }
             BracketRoundDto(
                 label = label,
-                matches = roundMatches.map { m ->
+                matches = roundMatches.sortedBy { it.position }.map { m ->
                     toMatchDto(m, codePrefix, scores[m.id], infos, colorBySeed)
                 },
             )
         }
 
-        val final = matches.first { it.round == totalRounds }
-        val champion = final.winnerId?.let { infos[it]?.displayName }
+        val champion = championDe(matches, parTableau, infos)
 
         return BracketDto(rounds = rounds, champion = champion)
+    }
+
+    /**
+     * Vainqueur du tournoi, s'il est déjà connu.
+     *
+     * - arbre : le vainqueur du dernier match (grande finale, ou finale simple)
+     * - round robin : celui qui compte le plus de victoires, une fois toutes les
+     *   rencontres jouées. Avant cela, personne n'est champion.
+     */
+    private fun championDe(
+        matches: List<MatchesRecord>,
+        parTableau: Map<BracketType, List<MatchesRecord>>,
+        infos: Map<UUID, org.example.backend.repository.RegistrationInfo>,
+    ): String? {
+        val poules = parTableau[BracketType.group]
+        if (poules != null && poules.isNotEmpty()) {
+            if (poules.any { it.status != MatchStatus.finished && it.status != MatchStatus.forfeited }) {
+                return null
+            }
+            val victoires = poules.mapNotNull { it.winnerId }.groupingBy { it }.eachCount()
+            return victoires.maxByOrNull { it.value }?.key?.let { infos[it]?.displayName }
+        }
+        val dernier = matches.maxByOrNull { it.round!! } ?: return null
+        return dernier.winnerId?.let { infos[it]?.displayName }
     }
 
     private fun toMatchDto(

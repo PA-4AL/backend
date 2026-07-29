@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 29/07/2026 (27 endpoints en v1, + 1 endpoint interne, format d'erreur)
+> **Dernière mise à jour :** 29/07/2026 (27 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -157,7 +157,15 @@ byes résolus immédiatement ; matchs créés de la finale vers le round 1 pour 
 **200** → `BracketDto`
 **404** — `"Tournoi introuvable"`
 **409** — `"Le tournoi a déjà démarré"` (statut hors `draft` / `registration` / `check_in`) · `"Le tournoi n'a aucune phase"` · `"Au moins 2 participants confirmés sont requis"`
-**400** — `"Format inconnu : X"` · `"Format « X » pas encore supporté — élimination simple uniquement en V1"`
+**400** — `"Format inconnu : X"` · `"Le format suisse se génère tour par tour et n'est pas encore disponible"`
+
+Formats disponibles : `single_elim`, `double_elim` (minimum 4 participants),
+`round_robin`. Le `swiss` est refusé : ses appariements dépendent du classement
+après chaque tour, il ne peut pas être pré-généré (`docs/adr/0008-formats-de-bracket.md`).
+
+Les libellés de tour renvoyés dépendent du format : « Quarts de finale » en arbre,
+« Journée 2 » en round robin, « Perdants — tour 1 » et « Grande finale » en
+élimination double.
 
 > Le type de la phase n'est vérifié **que si** `format` est fourni. Appelé sans
 > corps sur une phase `round_robin` ou `double_elim`, l'endpoint produit un bracket
