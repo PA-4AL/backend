@@ -35,6 +35,10 @@ open class TeamMembersRecord private constructor() : UpdatableRecordImpl<TeamMem
         set(value): Unit = set(3, value)
         get(): OffsetDateTime? = get(3) as OffsetDateTime?
 
+    open var rank: String?
+        set(value): Unit = set(4, value)
+        get(): String? = get(4) as String?
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -44,11 +48,12 @@ open class TeamMembersRecord private constructor() : UpdatableRecordImpl<TeamMem
     /**
      * Create a detached, initialised TeamMembersRecord
      */
-    constructor(teamId: UUID, userId: UUID, role: TeamMemberRole? = null, joinedAt: OffsetDateTime? = null): this() {
+    constructor(teamId: UUID, userId: UUID, role: TeamMemberRole? = null, joinedAt: OffsetDateTime? = null, rank: String? = null): this() {
         this.teamId = teamId
         this.userId = userId
         this.role = role
         this.joinedAt = joinedAt
+        this.rank = rank
         resetChangedOnNotNull()
     }
 }

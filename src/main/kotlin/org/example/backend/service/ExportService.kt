@@ -5,6 +5,7 @@ import org.example.backend.error.ErreurMetier
 import org.example.backend.model.JobDto
 import org.example.backend.model.TournamentFileType
 import org.example.backend.repository.BracketRepository
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TournamentRepository
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -27,6 +28,7 @@ import java.util.UUID
 class ExportService(
     private val tournaments: TournamentRepository,
     private val bracket: BracketRepository,
+    private val inscriptions: RegistrationRepository,
     private val jobs: JobService,
 ) {
 
@@ -65,13 +67,33 @@ class ExportService(
             )
         }
 
+        // Les joueurs de chaque inscription : membres de l'équipe, ou le joueur
+        // seul en tournoi solo. Sans eux, le classeur ne contenait qu'une colonne
+        // « Équipe », ce qui n'a pas grand intérêt pour un organisateur.
+        val joueurs = tournaments.findParticipantPlayers(tournamentId)
+        val classements = inscriptions.findFinalRanks(tournamentId)
+
+        // Les mieux classés d'abord : un tableur se lit du haut vers le bas. Les
+        // non classés (tournoi non terminé) suivent, dans l'ordre des seeds.
+        val ordonnes = participants.sortedBy { classements[it.registrationId] ?: Int.MAX_VALUE }
+
         return jobs.submitTournamentExport(
             tournamentType = typeDeFichier(tournoi.teamSize).literal,
             tournamentName = tournoi.name,
-            // `players` reste vide : la composition des équipes n'est pas portée
-            // par l'inscription. Le worker l'accepte (`serde(default)`), et le
-            // classement qu'il calcule ne dépend que des matchs.
-            teams = participants.map { mapOf("name" to it.displayName, "players" to emptyList<Any?>()) },
+            teams = ordonnes.map { p ->
+                mapOf(
+                    "name" to p.displayName,
+                    // `classement` est ignoré par le worker aujourd'hui, mais fait
+                    // partie du contrat de données : il évite de recalculer côté
+                    // fichier ce que l'application a déjà arrêté.
+                    "classement" to classements[p.registrationId],
+                    "players" to (joueurs[p.registrationId] ?: emptyList()).map { j ->
+                        // Le rang en jeu vient du fichier importé et est désormais
+                        // persisté ; vide s'il n'a jamais été renseigné.
+                        mapOf("username" to j.pseudo, "rank" to (j.rang ?: ""))
+                    },
+                )
+            },
             matches = matchs,
             createdBy = createdBy,
         )

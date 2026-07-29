@@ -1,8 +1,10 @@
 package org.example.backend.repository
 
 import org.example.backend.database.enums.RegistrationStatus
+import org.example.backend.database.enums.TeamMemberRole
 import org.example.backend.database.tables.references.REGISTRATIONS
 import org.example.backend.database.tables.references.TEAMS
+import org.example.backend.database.tables.references.TEAM_MEMBERS
 import org.example.backend.database.tables.references.TOURNAMENTS
 import org.example.backend.database.tables.references.USERS
 import org.jooq.DSLContext
@@ -18,6 +20,8 @@ data class RegistrationRow(
     val createdAt: OffsetDateTime,
     val tournamentId: UUID,
     val tournamentName: String,
+    /** Classement final (1 = vainqueur) ; `null` tant que le tournoi n'est pas terminé. */
+    val finalRank: Int? = null,
 )
 
 @Repository
@@ -83,6 +87,56 @@ class RegistrationRepository(private val dsl: DSLContext) {
         .fetchOne()!!
         .get(TEAMS.ID)!!
 
+    /**
+     * Équipe existante portant ce nom, s'il y en a une.
+     *
+     * Sert à rendre l'import **idempotent** : Pub/Sub garantit au moins une
+     * livraison, un même fichier peut donc être matérialisé deux fois. Sans cette
+     * recherche, chaque redélivrance créerait des équipes en double.
+     */
+    fun findTeamByName(name: String): UUID? = dsl.select(TEAMS.ID)
+        .from(TEAMS)
+        .where(TEAMS.NAME.eq(name))
+        .limit(1)
+        .fetchOne(TEAMS.ID)
+
+    /** Joueur existant portant ce pseudo — même raison d'être qu'au-dessus. */
+    fun findUserByPseudo(pseudo: String): UUID? = dsl.select(USERS.ID)
+        .from(USERS)
+        .where(USERS.PSEUDO.eq(pseudo))
+        .limit(1)
+        .fetchOne(USERS.ID)
+
+    /**
+     * Rattache un joueur à une équipe avec son rang en jeu.
+     *
+     * `onConflictDoUpdate` sur la clé (équipe, joueur) : un import rejoué met le
+     * rang à jour au lieu d'échouer sur la clé primaire.
+     */
+    fun attacherMembre(teamId: UUID, userId: UUID, role: TeamMemberRole, rank: String?) {
+        dsl.insertInto(TEAM_MEMBERS)
+            .set(TEAM_MEMBERS.TEAM_ID, teamId)
+            .set(TEAM_MEMBERS.USER_ID, userId)
+            .set(TEAM_MEMBERS.ROLE, role)
+            .set(TEAM_MEMBERS.RANK, rank)
+            .onConflict(TEAM_MEMBERS.TEAM_ID, TEAM_MEMBERS.USER_ID)
+            .doUpdate()
+            .set(TEAM_MEMBERS.RANK, rank)
+            .execute()
+    }
+
+    /** Classement final d'une inscription (1 = vainqueur). */
+    fun updateFinalRank(registrationId: UUID, finalRank: Int?): Boolean = dsl.update(REGISTRATIONS)
+        .set(REGISTRATIONS.FINAL_RANK, finalRank)
+        .where(REGISTRATIONS.ID.eq(registrationId))
+        .execute() == 1
+
+    fun findFinalRanks(tournamentId: UUID): Map<UUID, Int> = dsl.select(REGISTRATIONS.ID, REGISTRATIONS.FINAL_RANK)
+        .from(REGISTRATIONS)
+        .where(REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.FINAL_RANK.isNotNull))
+        .fetch()
+        .associate { it.get(REGISTRATIONS.ID)!! to it.get(REGISTRATIONS.FINAL_RANK)!! }
+
     fun existsForTeam(tournamentId: UUID, teamId: UUID): Boolean = dsl.fetchExists(
         REGISTRATIONS,
         REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId).and(REGISTRATIONS.TEAM_ID.eq(teamId)),
@@ -128,6 +182,7 @@ class RegistrationRepository(private val dsl: DSLContext) {
         REGISTRATIONS.ID,
         REGISTRATIONS.STATUS,
         REGISTRATIONS.SEED,
+        REGISTRATIONS.FINAL_RANK,
         REGISTRATIONS.CREATED_AT,
         REGISTRATIONS.TOURNAMENT_ID,
         TOURNAMENTS.NAME,
@@ -147,5 +202,6 @@ class RegistrationRepository(private val dsl: DSLContext) {
         createdAt = r.get(REGISTRATIONS.CREATED_AT)!!,
         tournamentId = r.get(REGISTRATIONS.TOURNAMENT_ID)!!,
         tournamentName = r.get(TOURNAMENTS.NAME)!!,
+        finalRank = r.get(REGISTRATIONS.FINAL_RANK),
     )
 }

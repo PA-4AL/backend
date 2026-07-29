@@ -12,6 +12,7 @@ import org.example.backend.database.tables.references.MATCHES
 import org.example.backend.database.tables.references.PHASES
 import org.example.backend.database.tables.references.REGISTRATIONS
 import org.example.backend.database.tables.references.TEAMS
+import org.example.backend.database.tables.references.TEAM_MEMBERS
 import org.example.backend.database.tables.references.TOURNAMENTS
 import org.example.backend.database.tables.references.TOURNAMENT_ORGANIZERS
 import org.example.backend.database.tables.references.USERS
@@ -21,6 +22,9 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 data class ParticipantRow(val registrationId: UUID, val displayName: String, val seed: Int?)
+
+/** Un joueur derrière une inscription, avec son rang **en jeu** (Diamant, Or…). */
+data class JoueurRow(val pseudo: String, val rang: String?)
 
 @Repository
 class TournamentRepository(private val dsl: DSLContext) {
@@ -98,6 +102,42 @@ class TournamentRepository(private val dsl: DSLContext) {
                     seed = r.get(REGISTRATIONS.SEED),
                 )
             }
+
+    /**
+     * Pseudos des joueurs derrière chaque inscription active, indexés par
+     * inscription — pour l'export .xlsx, qui liste les joueurs et pas seulement
+     * les équipes.
+     *
+     * Deux requêtes plutôt qu'une jointure conditionnelle : une inscription porte
+     * soit une équipe (les membres de `team_members`), soit un joueur seul
+     * (`registrations.user_id`). Un `COALESCE` mélangerait les deux cas et
+     * rendrait la lecture inutilement obscure.
+     */
+    fun findParticipantPlayers(tournamentId: UUID): Map<UUID, List<JoueurRow>> {
+        val actives = REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId)
+            .and(REGISTRATIONS.STATUS.`in`(RegistrationStatus.confirmed, RegistrationStatus.checked_in))
+
+        val parEquipe = dsl.select(REGISTRATIONS.ID, USERS.PSEUDO, TEAM_MEMBERS.RANK)
+            .from(REGISTRATIONS)
+            .join(TEAM_MEMBERS).on(TEAM_MEMBERS.TEAM_ID.eq(REGISTRATIONS.TEAM_ID))
+            .join(USERS).on(USERS.ID.eq(TEAM_MEMBERS.USER_ID))
+            .where(actives)
+            // Le capitaine d'abord, puis par ancienneté : l'ordre d'un tableur
+            // doit être stable d'un export à l'autre.
+            .orderBy(TEAM_MEMBERS.ROLE.asc(), TEAM_MEMBERS.JOINED_AT.asc())
+            .fetch { r ->
+                r.get(REGISTRATIONS.ID)!! to JoueurRow(r.get(USERS.PSEUDO) ?: "?", r.get(TEAM_MEMBERS.RANK))
+            }
+
+        // Joueur seul : aucun rang, il n'appartient à aucune équipe.
+        val solo = dsl.select(REGISTRATIONS.ID, USERS.PSEUDO)
+            .from(REGISTRATIONS)
+            .join(USERS).on(USERS.ID.eq(REGISTRATIONS.USER_ID))
+            .where(actives.and(REGISTRATIONS.TEAM_ID.isNull))
+            .fetch { r -> r.get(REGISTRATIONS.ID)!! to JoueurRow(r.get(USERS.PSEUDO) ?: "?", null) }
+
+        return (parEquipe + solo).groupBy({ it.first }, { it.second })
+    }
 
     /** (matchs joués, matchs au total) pour toutes les phases du tournoi. */
     fun countMatches(tournamentId: UUID): Pair<Int, Int> {
