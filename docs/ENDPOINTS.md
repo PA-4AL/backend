@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 29/07/2026 (27 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket)
+> **Dernière mise à jour :** 29/07/2026 (28 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket, placement manuel)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -65,6 +65,7 @@ CORS restreint à `app.cors.allowed-origins`
 | 3 | POST | `/api/v1/tournaments` | JWT | 201 |
 | 4 | GET | `/api/v1/tournaments/{id}/bracket` | public | 200 |
 | 5 | POST | `/api/v1/tournaments/{id}/bracket/generate` | JWT | 200 |
+| 5b | POST | `/api/v1/tournaments/{id}/bracket/swap` | JWT | 200 |
 | 6 | POST | `/api/v1/matches/{matchId}/score` | JWT | 200 |
 | 7 | GET | `/api/v1/tournaments/{id}/participants` | public | 200 |
 | 8 | POST | `/api/v1/tournaments/{id}/register` | JWT | 201 |
@@ -156,7 +157,14 @@ byes résolus immédiatement. Les matchs sont insérés puis câblés en une sec
 
 **200** → `BracketDto`
 **404** — `"Tournoi introuvable"`
-**409** — `"Le tournoi a déjà démarré"` (statut hors `draft` / `registration` / `check_in`) · `"Le tournoi n'a aucune phase"` · `"Au moins 2 participants confirmés sont requis"`
+**409** — `"Des résultats ont déjà été saisis : régénérer l'arbre les effacerait"` · `"Le tournoi n'a aucune phase"` · `"Au moins 2 participants confirmés sont requis"` · `"L'élimination double exige au moins 4 participants"`
+
+> **Le statut du tournoi n'intervient pas.** La génération est possible à tout
+> moment tant qu'aucun résultat n'a été saisi — un tournoi passé « en cours »
+> sans arbre généré restait sinon injouable. Attention au piège : la génération
+> résout les byes en marquant des matchs `finished`, donc un match terminé ne
+> prouve pas qu'on a joué ; le critère est un match à **deux** participants doté
+> d'un vainqueur, ou un score enregistré.
 **400** — `"Format inconnu : X"` · `"Le format suisse se génère tour par tour et n'est pas encore disponible"`
 
 Formats disponibles : `single_elim`, `double_elim` (minimum 4 participants),
@@ -169,6 +177,30 @@ Les libellés de tour renvoyés dépendent du format : « Quarts de finale » en
 
 > Sans corps, le format **déjà porté par la phase** est utilisé. Fournir `format`
 > change le type de la phase, de façon persistante.
+
+### 5b. `POST /api/v1/tournaments/{id}/bracket/swap` — JWT
+
+Placement manuel : échange les participants de deux emplacements de l'arbre.
+
+```json
+{ "fromMatchId": "…", "fromSlot": 1, "toMatchId": "…", "toSlot": 2 }
+```
+
+Un **emplacement** est un match et un slot (`1` ou `2`), la même désignation que
+celle affichée à l'écran (`SlotDto` `a` = slot 1, `b` = slot 2).
+
+C'est un **échange**, pas un écrasement : le participant présent à l'arrivée
+récupère la place libérée. Viser un emplacement vide (bye, ou vainqueur encore
+inconnu) déplace simplement le participant — un seul appel pour un seul geste.
+
+**200** → `BracketDto` complet, recalculé.
+**400** — `"Un slot vaut 1 ou 2"` · `"Les deux emplacements sont identiques"` · `"Les deux emplacements sont vides"` · `"Les deux emplacements doivent être dans la même phase"`
+**404** — `"Match introuvable"`
+**409** — `"Un match déjà joué ne peut pas être réorganisé"` (déplacer une équipe hors d'un match joué invaliderait son résultat) · `"Ce participant est déjà présent dans le match d'arrivée"`
+
+> Le seeding **avant** génération se règle plutôt par l'endpoint 12
+> (`/registrations/{id}/seed`) : il décide du placement initial. Cet endpoint-ci
+> sert à corriger un arbre **déjà généré**.
 
 ### 6. `POST /api/v1/matches/{matchId}/score` — JWT
 

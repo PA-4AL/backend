@@ -2,6 +2,7 @@ package org.example.backend.model
 
 import java.time.Duration
 import java.time.OffsetDateTime
+import java.util.UUID
 
 /* DTOs du bracket, alignés sur frontend/src/api/types.ts (BracketData). */
 
@@ -29,6 +30,16 @@ data class BracketRoundDto(val label: String, val matches: List<BracketMatchDto>
 data class BracketDto(val rounds: List<BracketRoundDto>, val champion: String? = null)
 
 data class ScoreRequest(val scoreA: Int, val scoreB: Int)
+
+/**
+ * Échange de deux emplacements de l'arbre (placement manuel).
+ *
+ * Un emplacement = un match + un slot (1 ou 2). Les noms `from`/`to` décrivent le
+ * geste de l'utilisateur — il saisit un participant et le pose ailleurs — mais
+ * l'opération est bien un **échange** : le participant éventuellement présent à
+ * l'arrivée prend la place laissée libre, sinon il serait écrasé.
+ */
+data class SwapSlotsRequest(val fromMatchId: UUID, val fromSlot: Int, val toMatchId: UUID, val toSlot: Int)
 
 /** Helpers d'affichage partagés (mêmes conventions que le frontend). */
 object Display {

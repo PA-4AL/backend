@@ -3,6 +3,7 @@ package org.example.backend.controller.v1
 import org.example.backend.model.BracketDto
 import org.example.backend.model.GenerateBracketRequest
 import org.example.backend.model.ScoreRequest
+import org.example.backend.model.SwapSlotsRequest
 import org.example.backend.service.BracketService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -30,6 +31,16 @@ class BracketV1Controller(private val service: BracketService) {
     @PostMapping("/tournaments/{id}/bracket/generate")
     fun generate(@PathVariable id: UUID, @RequestBody(required = false) req: GenerateBracketRequest?): BracketDto =
         service.generate(id, req?.format)
+
+    /**
+     * Échange deux emplacements de l'arbre — placement manuel des participants.
+     *
+     * Un emplacement est un match et un slot (1 ou 2), tel qu'affiché à l'écran.
+     * Échanger avec un emplacement vide déplace le participant.
+     */
+    @PostMapping("/tournaments/{id}/bracket/swap")
+    fun swap(@PathVariable id: UUID, @RequestBody req: SwapSlotsRequest): BracketDto =
+        service.echangerEmplacements(req.fromMatchId, req.fromSlot, req.toMatchId, req.toSlot)
 
     /** Saisie du score d'un match, avec propagation du vainqueur. */
     @PostMapping("/matches/{matchId}/score")
