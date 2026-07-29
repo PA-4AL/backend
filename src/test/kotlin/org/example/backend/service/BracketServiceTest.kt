@@ -8,11 +8,10 @@ import org.example.backend.database.enums.PhaseType
 import org.example.backend.database.enums.TournamentStatus
 import org.example.backend.database.tables.records.MatchesRecord
 import org.example.backend.database.tables.records.PhasesRecord
+import org.example.backend.error.ErreurMetier
 import org.example.backend.repository.BracketRepository
 import org.example.backend.repository.TournamentRepository
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpStatus
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -65,10 +64,12 @@ class BracketServiceTest {
 
     @Test
     fun `un score egal est refuse`() {
-        val error = assertFailsWith<ResponseStatusException> {
+        // Le domaine lève une erreur MÉTIER : il ne connaît pas HTTP. La
+        // traduction en 400 appartient à GestionnaireErreurs.
+        val erreur = assertFailsWith<ErreurMetier.Invalide> {
             service.reportScore(UUID.randomUUID(), scoreA = 1, scoreB = 1)
         }
-        assertEquals(HttpStatus.BAD_REQUEST, error.statusCode)
+        assertEquals("Pas de match nul en élimination directe", erreur.message)
     }
 
     @Test
@@ -76,10 +77,10 @@ class BracketServiceTest {
         val existing = match(status = MatchStatus.finished)
         every { repo.findMatch(existing.id!!) } returns existing
 
-        val error = assertFailsWith<ResponseStatusException> {
+        val erreur = assertFailsWith<ErreurMetier.Conflit> {
             service.reportScore(existing.id!!, scoreA = 2, scoreB = 0)
         }
-        assertEquals(HttpStatus.CONFLICT, error.statusCode)
+        assertEquals("Match déjà terminé", erreur.message)
     }
 
     @Test
@@ -87,10 +88,10 @@ class BracketServiceTest {
         val existing = match(participant2Id = null)
         every { repo.findMatch(existing.id!!) } returns existing
 
-        val error = assertFailsWith<ResponseStatusException> {
+        val erreur = assertFailsWith<ErreurMetier.Conflit> {
             service.reportScore(existing.id!!, scoreA = 2, scoreB = 0)
         }
-        assertEquals(HttpStatus.CONFLICT, error.statusCode)
+        assertEquals("Les deux participants ne sont pas encore connus", erreur.message)
     }
 
     @Test

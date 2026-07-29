@@ -2,11 +2,10 @@ package org.example.backend.service
 
 import com.google.auth.oauth2.GoogleCredentials
 import org.example.backend.config.PubSubProperties
+import org.example.backend.error.ErreurTechnique
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
-import org.springframework.web.server.ResponseStatusException
 import java.util.Base64
 
 /**
@@ -36,8 +35,7 @@ class PubSubPublisher(private val props: PubSubProperties) {
     /** Publie `json` sur le topic des demandes et renvoie l'identifiant du message. */
     fun publishDemand(json: String): String {
         if (!props.enabled) {
-            throw ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
+            throw ErreurTechnique.ServiceIndisponible(
                 "Traitement asynchrone indisponible : messagerie non configurée",
             )
         }
@@ -61,15 +59,13 @@ class PubSubPublisher(private val props: PubSubProperties) {
                 ?: throw IllegalStateException("Pub/Sub n'a retourné aucun identifiant de message")
             log.info("Demande publiée sur {} (message {})", props.topicDemands, id)
             id
-        } catch (e: ResponseStatusException) {
+        } catch (e: ErreurTechnique) {
             throw e
         } catch (e: Exception) {
+            // La cause est journalisée ici, mais n'est pas exposée au client :
+            // c'est le gestionnaire d'erreurs qui décide de ce qui sort.
             log.error("Publication Pub/Sub en échec sur {}", props.topicDemands, e)
-            throw ResponseStatusException(
-                HttpStatus.BAD_GATEWAY,
-                "Impossible de transmettre la demande au worker",
-                e,
-            )
+            throw ErreurTechnique.DependanceEnEchec("Pub/Sub", e)
         }
     }
 

@@ -1,7 +1,7 @@
 # ADR-0007 — Séparer erreurs métier et codes HTTP
 
 - **Date** : 2026-07-29
-- **Statut** : **proposé** — écart connu, non encore corrigé
+- **Statut** : **accepté** — appliqué le 2026-07-29
 - **Portée** : backend
 
 ## Contexte
@@ -18,7 +18,7 @@ traduits qu'à la frontière.
 
 ## Décision
 
-Cible retenue, **non encore appliquée** :
+Appliquée :
 
 1. une hiérarchie d'exceptions métier dans le domaine
    (`TournamentNotFound`, `MatchAlreadyFinished`, `DrawNotAllowed`…), sans aucune
@@ -29,10 +29,20 @@ Cible retenue, **non encore appliquée** :
 
 ## Conséquences
 
-- le domaine deviendrait réutilisable hors contexte web et testable sans Spring
-- les correspondances statut ↔ erreur seraient centralisées en un seul endroit
-- le chantier touche 54 emplacements dans six services, dont certains évoluent en
-  parallèle : à mener en une passe dédiée, service par service, en commençant par
-  `BracketService` (le plus critique)
-- **en attendant, l'écart est assumé et documenté** — c'est précisément l'objet de
-  cet ADR : ne pas laisser croire que la décision a été prise par ignorance
+- `service/` n'importe plus `org.springframework.http` : **50 exceptions HTTP
+  remplacées** par des erreurs du domaine, dans les six services et le publieur
+  Pub/Sub
+- les correspondances statut ↔ erreur sont centralisées dans un seul fichier
+- les tests du domaine assertent désormais la **sémantique métier**
+  (`ErreurMetier.Conflit` et son message) et non plus un code HTTP
+- **effet de bord bénéfique** : le message d'erreur parvient enfin au client.
+  `ResponseStatusException` ne l'incluait pas dans la réponse sans
+  `server.error.include-message`, donc le frontend affichait des erreurs muettes
+  alors qu'il sait lire le champ `message`
+- un code fonctionnel stable (`CONFLIT`, `INTROUVABLE`…) accompagne chaque
+  réponse, exploitable côté client indépendamment du statut
+- **piège rencontré en cours de route** : un filet de sécurité sur `Exception`
+  attrape aussi les exceptions de Spring. Un refus de `@PreAuthorize` devenait un
+  500 au lieu d'un 403, et un JSON illisible un 500 au lieu d'un 400. D'où
+  l'héritage de `ResponseEntityExceptionHandler` et un gestionnaire dédié à
+  `AccessDeniedException`, tous deux couverts par un test

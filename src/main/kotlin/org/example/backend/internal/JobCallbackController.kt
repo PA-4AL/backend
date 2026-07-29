@@ -1,18 +1,18 @@
 package org.example.backend.internal
 
 import org.example.backend.config.PubSubProperties
+import org.example.backend.error.ErreurMetier
+import org.example.backend.error.ErreurTechnique
 import org.example.backend.model.PubSubPushEnvelope
 import org.example.backend.model.WorkerResponse
 import org.example.backend.service.JobService
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import tools.jackson.databind.ObjectMapper
 import java.util.Base64
 
@@ -51,7 +51,7 @@ class JobCallbackController(
         verifyCaller(jwt)
 
         val encoded = envelope.message?.data
-            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Message sans données")
+            ?: throw ErreurMetier.Invalide("Message sans données")
 
         val response = try {
             val json = String(Base64.getDecoder().decode(encoded))
@@ -59,7 +59,7 @@ class JobCallbackController(
         } catch (e: Exception) {
             // Message illisible : on l'acquitte pour ne pas boucler, mais on trace.
             log.error("Message de réponse illisible (id {}), abandonné", envelope.message.messageId, e)
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Message illisible")
+            throw ErreurMetier.Invalide("Message illisible")
         }
 
         jobs.applyWorkerResponse(response)
@@ -75,15 +75,12 @@ class JobCallbackController(
         val expected = props.pushServiceAccount
         if (expected.isBlank()) {
             // Configuration incomplète : on refuse plutôt que d'ouvrir l'endpoint.
-            throw ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "Callback non configuré",
-            )
+            throw ErreurTechnique.ServiceIndisponible("Callback non configuré")
         }
         val email = jwt?.getClaimAsString("email")
         if (email != expected) {
             log.warn("Appel du callback refusé (email du jeton : {})", email)
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Appelant non autorisé")
+            throw ErreurMetier.NonAutorise("Appelant non autorisé")
         }
     }
 }

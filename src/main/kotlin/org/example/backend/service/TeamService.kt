@@ -1,16 +1,15 @@
 package org.example.backend.service
 
 import org.example.backend.database.enums.TeamMemberRole
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.AddMemberRequest
 import org.example.backend.model.CreateTeamRequest
 import org.example.backend.model.TeamDto
 import org.example.backend.model.TeamMemberDto
 import org.example.backend.repository.RegistrationRepository
 import org.example.backend.repository.TeamRepository
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 @Service
@@ -22,13 +21,13 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
     }
 
     fun get(teamId: UUID): TeamDto = repo.find(teamId)?.let { toDto(it.id) }
-        ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Équipe introuvable")
+        ?: throw ErreurMetier.Introuvable("Équipe introuvable")
 
     @Transactional
     fun create(req: CreateTeamRequest, keycloakId: String, pseudo: String, email: String?): TeamDto {
         val name = req.name.trim()
         if (name.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Le nom de l'équipe est obligatoire")
+            throw ErreurMetier.Invalide("Le nom de l'équipe est obligatoire")
         }
         val tag = req.tag?.trim()?.take(8)?.ifEmpty { null }
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
@@ -44,16 +43,16 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
 
         val memberPseudo = req.pseudo.trim()
         if (memberPseudo.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Le pseudo est obligatoire")
+            throw ErreurMetier.Invalide("Le pseudo est obligatoire")
         }
         val role = TeamMemberRole.entries.firstOrNull { it.literal == req.role } ?: TeamMemberRole.member
         if (role == TeamMemberRole.captain) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Une équipe n'a qu'un capitaine")
+            throw ErreurMetier.Invalide("Une équipe n'a qu'un capitaine")
         }
 
         val userId = repo.findUserByPseudo(memberPseudo) ?: registrations.insertGhostUser(memberPseudo)
         if (repo.isMember(teamId, userId)) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "$memberPseudo est déjà dans l'équipe")
+            throw ErreurMetier.Conflit("$memberPseudo est déjà dans l'équipe")
         }
         repo.addMember(teamId, userId, role)
         return toDto(teamId)
@@ -64,20 +63,20 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
         val callerId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
         requireCaptain(teamId, callerId)
         if (memberId == callerId) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Le capitaine ne peut pas se retirer lui-même")
+            throw ErreurMetier.Invalide("Le capitaine ne peut pas se retirer lui-même")
         }
         if (!repo.removeMember(teamId, memberId)) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Membre introuvable")
+            throw ErreurMetier.Introuvable("Membre introuvable")
         }
         return toDto(teamId)
     }
 
     private fun requireCaptain(teamId: UUID, userId: UUID) {
         if (repo.find(teamId) == null) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Équipe introuvable")
+            throw ErreurMetier.Introuvable("Équipe introuvable")
         }
         if (!repo.isCaptain(teamId, userId)) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Seul le capitaine peut gérer le roster")
+            throw ErreurMetier.NonAutorise("Seul le capitaine peut gérer le roster")
         }
     }
 

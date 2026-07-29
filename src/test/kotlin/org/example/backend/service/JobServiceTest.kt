@@ -6,14 +6,13 @@ import io.mockk.slot
 import io.mockk.verify
 import org.example.backend.database.enums.JobStatus
 import org.example.backend.database.enums.JobType
+import org.example.backend.error.ErreurMetier
 import org.example.backend.model.ImportTeamsRequest
 import org.example.backend.model.WorkerError
 import org.example.backend.model.WorkerResponse
 import org.example.backend.repository.JobRepository
 import org.example.backend.repository.JobRow
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpStatus
-import org.springframework.web.server.ResponseStatusException
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -73,27 +72,25 @@ class JobServiceTest {
 
     @Test
     fun `un type de tournoi inconnu est refuse avant publication`() {
-        val error = assertFailsWith<ResponseStatusException> {
+        assertFailsWith<ErreurMetier.Invalide> {
             service.submitTeamImport(ImportTeamsRequest("quidditch_7v7", "UEsDBBQ="), null)
         }
-        assertEquals(HttpStatus.BAD_REQUEST, error.statusCode)
         verify(exactly = 0) { publisher.publishDemand(any()) }
     }
 
     @Test
     fun `un fichier vide est refuse`() {
-        val error = assertFailsWith<ResponseStatusException> {
+        assertFailsWith<ErreurMetier.Invalide> {
             service.submitTeamImport(ImportTeamsRequest("esport_5v5", "   "), null)
         }
-        assertEquals(HttpStatus.BAD_REQUEST, error.statusCode)
     }
 
     @Test
     fun `un fichier au dela de la limite Pub-Sub est refuse`() {
-        val error = assertFailsWith<ResponseStatusException> {
+        val erreur = assertFailsWith<ErreurMetier.TropVolumineux> {
             service.submitTeamImport(ImportTeamsRequest("esport_5v5", "A".repeat(9_000_001)), null)
         }
-        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, error.statusCode)
+        assertTrue(erreur.message!!.contains("10 Mo"))
     }
 
     @Test
@@ -150,10 +147,9 @@ class JobServiceTest {
 
     @Test
     fun `une reponse sans task_id valide est rejetee`() {
-        val error = assertFailsWith<ResponseStatusException> {
+        assertFailsWith<ErreurMetier.Invalide> {
             service.applyWorkerResponse(WorkerResponse(taskId = "pas-un-uuid", status = "success"))
         }
-        assertEquals(HttpStatus.BAD_REQUEST, error.statusCode)
     }
 
     @Test

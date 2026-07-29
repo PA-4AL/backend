@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 28/07/2026 (27 endpoints en v1, + 1 endpoint interne)
+> **Dernière mise à jour :** 29/07/2026 (27 endpoints en v1, + 1 endpoint interne, format d'erreur)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -556,8 +556,35 @@ possibles : poser `server.error.include-message: always`, ou introduire un
 de notation (« ne pas renvoyer de codes HTTP depuis la couche domaine »).
 
 Codes utilisés : `400` validation, `403` propriété (capitaine), `404` introuvable,
-`409` conflit d'état métier. `401` est produit par Spring Security en l'absence de
-token valide.
+`409` conflit d'état métier, `413` charge trop volumineuse, `502`/`503` dépendance
+externe. `401` est produit par Spring Security en l'absence de token valide.
+
+### Format du corps d'erreur
+
+Toute erreur renvoie un `ProblemDetail` enrichi de deux champs, produit par
+`web/GestionnaireErreurs` :
+
+```json
+{
+  "type": "about:blank",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Match déjà terminé",
+  "message": "Match déjà terminé",
+  "code": "CONFLIT"
+}
+```
+
+- **`message`** — destiné à l'utilisateur, en français. C'est le champ lu par
+  `src/api/client.ts` côté frontend.
+- **`code`** — code fonctionnel **stable**, indépendant du statut HTTP :
+  `INTROUVABLE`, `INVALIDE`, `CONFLIT`, `NON_AUTORISE`, `TROP_VOLUMINEUX`,
+  `SERVICE_INDISPONIBLE`, `DEPENDANCE_EN_ECHEC`, `ERREUR_INTERNE`. À préférer au
+  statut pour un traitement conditionnel côté client.
+
+Une erreur inattendue (500) ne renvoie **jamais** son message d'origine : il
+pourrait exposer un détail d'implémentation. Le domaine, lui, ne connaît pas HTTP —
+il lève des `ErreurMetier` ou `ErreurTechnique` (`docs/adr/0007-erreurs-metier-et-http.md`).
 
 ---
 
