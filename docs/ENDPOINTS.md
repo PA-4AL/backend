@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 29/07/2026 (28 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket, placement manuel)
+> **Dernière mise à jour :** 30/07/2026 (29 endpoints en v1, + 1 endpoint interne, format d'erreur, formats de bracket, placement manuel, export .xlsx)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -66,6 +66,7 @@ CORS restreint à `app.cors.allowed-origins`
 | 4 | GET | `/api/v1/tournaments/{id}/bracket` | public | 200 |
 | 5 | POST | `/api/v1/tournaments/{id}/bracket/generate` | JWT | 200 |
 | 5b | POST | `/api/v1/tournaments/{id}/bracket/swap` | JWT | 200 |
+| 5c | POST | `/api/v1/tournaments/{id}/export` | JWT organizer | 200 |
 | 6 | POST | `/api/v1/matches/{matchId}/score` | JWT | 200 |
 | 7 | GET | `/api/v1/tournaments/{id}/participants` | public | 200 |
 | 8 | POST | `/api/v1/tournaments/{id}/register` | JWT | 201 |
@@ -175,8 +176,11 @@ Les libellés de tour renvoyés dépendent du format : « Quarts de finale » en
 « Journée 2 » en round robin, « Perdants — tour 1 » et « Grande finale » en
 élimination double.
 
-> Sans corps, le format **déjà porté par la phase** est utilisé. Fournir `format`
-> change le type de la phase, de façon persistante.
+> **Le frontend n'envoie plus de `format`.** Il est choisi à la **création du
+> tournoi** et porté par la phase ; l'écran Bracket l'applique sans le
+> redemander, pour qu'un seul endroit décide. Le champ reste accepté par l'API
+> (compatibilité, et correction d'un tournoi mal créé) et change alors le type de
+> la phase de façon persistante.
 
 ### 5b. `POST /api/v1/tournaments/{id}/bracket/swap` — JWT
 
@@ -201,6 +205,42 @@ inconnu) déplace simplement le participant — un seul appel pour un seul geste
 > Le seeding **avant** génération se règle plutôt par l'endpoint 12
 > (`/registrations/{id}/seed`) : il décide du placement initial. Cet endpoint-ci
 > sert à corriger un arbre **déjà généré**.
+
+### 5c. `POST /api/v1/tournaments/{id}/export` — JWT `organizer` / `admin`
+
+Export du tournoi en `.xlsx`. Corps vide.
+
+**Traitement asynchrone** : la réponse est un `JobDto`, pas le fichier. Le backend
+publie une demande `export_excel` sur Pub/Sub, le worker Rust produit le classeur
+et répond ; le fichier apparaît alors dans `result.file_base64` du job, à suivre
+par l'endpoint 13 (`GET /jobs/{id}`).
+
+**200** → `JobDto` (`status` = `processing`)
+**404** — `"Tournoi introuvable"`
+**409** — `"Le tournoi n'a aucune phase"` · `"Aucun participant confirmé à exporter"`
+**503** — messagerie indisponible (`APP_PUBSUB_ENABLED=false`)
+
+Payload transmis au worker, contrat de `worker/src/tasks/export_excel.rs` :
+
+```json
+{ "tournament_type": "esport_5v5", "tournament_name": "PA Major CS2",
+  "teams": [{ "name": "Alpha", "players": [] }],
+  "matches": [{ "round": 1, "team_a": "Alpha", "team_b": "Bravo",
+                "score_a": 2, "score_b": 1, "status": "finished" }] }
+```
+
+Trois points à connaître :
+
+- `tournament_type` est **déduit de la taille d'équipe** (11 → `football_11v11`,
+  sinon `esport_5v5`) : le worker ne connaît que ces deux gabarits ;
+- `status` n'admet que `pending` / `in_progress` / `finished`. `disputed` et
+  `forfeited` sont émis en `pending` — les rendre `finished` mentirait sur un
+  score absent ;
+- un match dont un slot est vide (bye, vainqueur inconnu) **n'est pas exporté**,
+  et `players` reste vide, la composition des équipes n'étant pas portée par
+  l'inscription.
+
+Le fichier transite en base64 dans le message Pub/Sub, **plafonné à 10 Mo**.
 
 ### 6. `POST /api/v1/matches/{matchId}/score` — JWT
 

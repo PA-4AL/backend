@@ -3,6 +3,7 @@ package org.example.backend.controller.v1
 import org.example.backend.model.ImportTeamsRequest
 import org.example.backend.model.JobDto
 import org.example.backend.repository.RegistrationRepository
+import org.example.backend.service.ExportService
 import org.example.backend.service.JobService
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -25,12 +26,25 @@ import java.util.UUID
  */
 @RestController
 @RequestMapping(version = "1+")
-class JobV1Controller(private val jobs: JobService, private val registrations: RegistrationRepository) {
+class JobV1Controller(
+    private val jobs: JobService,
+    private val exports: ExportService,
+    private val registrations: RegistrationRepository,
+) {
 
     @PostMapping("/teams/import")
     @PreAuthorize("hasAnyRole('organizer', 'admin')")
     fun importTeams(@AuthenticationPrincipal jwt: Jwt, @RequestBody body: ImportTeamsRequest): JobDto =
         jobs.submitTeamImport(body, currentUserId(jwt))
+
+    /**
+     * Export du tournoi en .xlsx. Répond immédiatement avec le job : le fichier
+     * arrive dans `result.file_base64` une fois le worker passé.
+     */
+    @PostMapping("/tournaments/{id}/export")
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun exportTournament(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): JobDto =
+        exports.soumettre(id, currentUserId(jwt))
 
     @GetMapping("/jobs/{id}")
     fun status(@PathVariable id: UUID): JobDto = jobs.get(id)
