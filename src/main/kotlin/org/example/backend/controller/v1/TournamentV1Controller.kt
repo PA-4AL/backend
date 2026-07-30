@@ -38,8 +38,10 @@ class TournamentV1Controller(
         service.list(jwt?.let { currentUserId(it) })
 
     @GetMapping("/{id}")
-    fun get(@PathVariable id: UUID): ResponseEntity<TournamentDetailDto> =
-        service.get(id)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.notFound().build()
+    fun get(@AuthenticationPrincipal jwt: Jwt?, @PathVariable id: UUID): ResponseEntity<TournamentDetailDto> =
+        service.get(id, jwt?.let { currentUserId(it) })
+            ?.let { ResponseEntity.ok(it) }
+            ?: ResponseEntity.notFound().build()
 
     /** Création — réservée aux comptes authentifiés via Keycloak. */
     @PostMapping
