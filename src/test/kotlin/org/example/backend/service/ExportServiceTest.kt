@@ -48,9 +48,9 @@ class ExportServiceTest {
     private val regA = UUID.randomUUID()
     private val regB = UUID.randomUUID()
 
-    private fun stub(teamSize: Int? = 5, participants: List<ParticipantRow> = deuxEquipes()) {
+    private fun stub(teamSize: Int? = 5, gabarit: String? = null, participants: List<ParticipantRow> = deuxEquipes()) {
         every { tournaments.findById(tournamentId) } returns
-            TournamentsRecord(id = tournamentId, name = "PA Major", teamSize = teamSize)
+            TournamentsRecord(id = tournamentId, name = "PA Major", teamSize = teamSize, fileTemplate = gabarit)
         every { tournaments.findFirstPhase(tournamentId) } returns
             PhasesRecord(
                 id = phaseId,
@@ -209,8 +209,11 @@ class ExportServiceTest {
     }
 
     @Test
-    fun `onze joueurs par equipe donnent le gabarit football`() {
-        stub(teamSize = 11)
+    fun `le gabarit vient du tournoi, pas de la taille d'equipe`() {
+        // Régression : le gabarit était déduit de `teamSize == 11`. Un football à
+        // 7 recevait donc les colonnes esport. Il est désormais une donnée du
+        // tournoi — ici un tournoi à 7 joueurs déclaré football.
+        stub(teamSize = 7, gabarit = "football_11v11")
         val type = slot<String>()
         every {
             jobs.submitTournamentExport(capture(type), any(), any(), any(), any())
@@ -222,8 +225,10 @@ class ExportServiceTest {
     }
 
     @Test
-    fun `toute autre taille donne le gabarit esport`() {
-        stub(teamSize = 5)
+    fun `sans gabarit declare, l'esport reste le defaut`() {
+        // Les tournois créés avant la colonne n'ont pas de gabarit : ils ne doivent
+        // pas devenir inexportables pour autant.
+        stub(teamSize = 5, gabarit = null)
         val type = slot<String>()
         every {
             jobs.submitTournamentExport(capture(type), any(), any(), any(), any())

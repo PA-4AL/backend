@@ -173,6 +173,7 @@ class TournamentRepository(private val dsl: DSLContext) {
         teamSize: Int,
         maxParticipants: Int?,
         visibility: TournamentVisibility,
+        fileTemplate: String?,
         startAt: java.time.OffsetDateTime?,
         ownerKeycloakId: String,
         ownerPseudo: String,
@@ -197,6 +198,7 @@ class TournamentRepository(private val dsl: DSLContext) {
             .set(TOURNAMENTS.VISIBILITY, visibility)
             .set(TOURNAMENTS.TEAM_SIZE, teamSize)
             .set(TOURNAMENTS.MAX_PARTICIPANTS, maxParticipants)
+            .set(TOURNAMENTS.FILE_TEMPLATE, fileTemplate)
             .set(TOURNAMENTS.START_AT, startAt)
             .returning()
             .fetchOne()!!

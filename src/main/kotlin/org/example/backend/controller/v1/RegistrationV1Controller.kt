@@ -2,9 +2,11 @@ package org.example.backend.controller.v1
 
 import org.example.backend.model.ParticipantDto
 import org.example.backend.model.PendingRegistrationDto
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.service.RegistrationService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
@@ -25,7 +27,10 @@ data class RegisterTeamRequest(val teamId: UUID)
  */
 @RestController
 @RequestMapping(version = "1+")
-class RegistrationV1Controller(private val service: RegistrationService) {
+class RegistrationV1Controller(
+    private val service: RegistrationService,
+    private val registrations: RegistrationRepository,
+) {
 
     /** Liste publique des participants d'un tournoi. */
     @GetMapping("/tournaments/{id}/participants")
@@ -62,8 +67,13 @@ class RegistrationV1Controller(private val service: RegistrationService) {
 
     /** Ajout manuel d'un participant par l'organisateur (joueur sans compte). */
     @PostMapping("/tournaments/{id}/participants")
-    fun addManual(@PathVariable id: UUID, @RequestBody body: AddParticipantRequest): ResponseEntity<ParticipantDto> =
-        ResponseEntity.status(HttpStatus.CREATED).body(service.addManual(id, body.name))
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun addManual(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @RequestBody body: AddParticipantRequest,
+    ): ResponseEntity<ParticipantDto> = ResponseEntity.status(HttpStatus.CREATED)
+        .body(service.addManual(id, body.name, currentUserId(jwt), estAdmin(jwt)))
 
     /** Inscriptions à traiter (organisateur). */
     @GetMapping("/registrations/pending")
@@ -71,20 +81,44 @@ class RegistrationV1Controller(private val service: RegistrationService) {
 
     /** Seeding manuel avant génération du bracket. */
     @PostMapping("/registrations/{id}/seed")
-    fun setSeed(@PathVariable id: UUID, @RequestBody body: SetSeedRequest): ResponseEntity<Void> {
-        service.setSeed(id, body.seed)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun setSeed(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @RequestBody body: SetSeedRequest,
+    ): ResponseEntity<Void> {
+        service.setSeed(id, body.seed, currentUserId(jwt), estAdmin(jwt))
         return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/registrations/{id}/confirm")
-    fun confirm(@PathVariable id: UUID): ResponseEntity<Void> {
-        service.confirm(id)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun confirm(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): ResponseEntity<Void> {
+        service.confirm(id, currentUserId(jwt), estAdmin(jwt))
         return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/registrations/{id}/reject")
-    fun reject(@PathVariable id: UUID): ResponseEntity<Void> {
-        service.reject(id)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun reject(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): ResponseEntity<Void> {
+        service.reject(id, currentUserId(jwt), estAdmin(jwt))
         return ResponseEntity.noContent().build()
     }
+
+    /** Check-in d'un participant, dans la fenêtre prévue par le tournoi. */
+    @PostMapping("/registrations/{id}/check-in")
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun checkIn(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): ParticipantDto =
+        service.checkIn(id, currentUserId(jwt), estAdmin(jwt))
+
+    /** Identifiant interne de l'utilisateur, rattaché à son compte Keycloak. */
+    private fun currentUserId(jwt: Jwt): UUID = registrations.upsertUserByKeycloak(
+        jwt.subject,
+        jwt.getClaimAsString("preferred_username") ?: "Joueur",
+        jwt.getClaimAsString("email"),
+    )
+
+    /** L'administrateur plateforme passe outre le contrôle de propriété. */
+    private fun estAdmin(jwt: Jwt): Boolean =
+        (jwt.getClaimAsMap("realm_access")?.get("roles") as? List<*>)?.contains("admin") == true
 }

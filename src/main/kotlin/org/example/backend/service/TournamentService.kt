@@ -8,6 +8,7 @@ import org.example.backend.model.CreateTournamentRequest
 import org.example.backend.model.Display
 import org.example.backend.model.TeamRefDto
 import org.example.backend.model.TournamentDetailDto
+import org.example.backend.model.TournamentFileType
 import org.example.backend.model.TournamentSummaryDto
 import org.example.backend.repository.TournamentRepository
 import org.springframework.stereotype.Service
@@ -90,6 +91,15 @@ class TournamentService(private val repository: TournamentRepository, private va
                 throw ErreurMetier.Invalide("Date de début invalide")
             }
         }
+        // Gabarit inconnu = refus explicite : l'accepter en silence produirait des
+        // fichiers aux mauvaises colonnes, découverts au premier import.
+        val gabarit = req.fileTemplate?.let {
+            TournamentFileType.from(it)?.literal
+                ?: throw ErreurMetier.Invalide(
+                    "Gabarit de fichier inconnu : $it " +
+                        "(attendu : ${TournamentFileType.entries.joinToString { e -> e.literal }})",
+                )
+        }
         val t = repository.create(
             name = req.name,
             description = req.description,
@@ -98,6 +108,7 @@ class TournamentService(private val repository: TournamentRepository, private va
             teamSize = req.teamSize,
             maxParticipants = req.maxParticipants,
             visibility = visibility,
+            fileTemplate = gabarit,
             startAt = startAt,
             ownerKeycloakId = keycloakId,
             ownerPseudo = pseudo,
