@@ -35,8 +35,13 @@ class BracketPlacementTest {
     private val tournaments = mockk<TournamentRepository>(relaxed = true)
     private val repo = mockk<BracketRepository>(relaxed = true)
     private val inscriptions = mockk<RegistrationRepository>(relaxed = true)
-    private val service = BracketService(tournaments, repo, inscriptions)
 
+    // Droits mockés en relaxed : ils laissent passer, l'autorisation a ses
+    // propres tests (DroitsTest). Ici on teste les règles du bracket.
+    private val droits = mockk<Droits>(relaxed = true)
+    private val service = BracketService(tournaments, repo, inscriptions, droits)
+
+    private val appelant = UUID.randomUUID()
     private val phaseId = UUID.randomUUID()
     private val tournamentId = UUID.randomUUID()
 
@@ -86,7 +91,7 @@ class BracketPlacementTest {
         every { repo.findPhaseMatches(phaseId) } returns emptyList()
         every { tournaments.findActiveParticipants(tournamentId) } returns participants(4)
 
-        service.generate(tournamentId, "single_elim")
+        service.generate(tournamentId, appelant, true, "single_elim")
 
         verify { repo.deletePhaseMatches(phaseId) }
     }
@@ -100,7 +105,8 @@ class BracketPlacementTest {
         every { repo.findPhaseMatches(phaseId) } returns
             listOf(match(participant1Id = a, participant2Id = b, winnerId = a))
 
-        val erreur = assertFailsWith<ErreurMetier.Conflit> { service.generate(tournamentId, "single_elim") }
+        val erreur =
+            assertFailsWith<ErreurMetier.Conflit> { service.generate(tournamentId, appelant, true, "single_elim") }
         assertEquals(
             "Des résultats ont déjà été saisis : régénérer l'arbre les effacerait",
             erreur.message,
@@ -121,7 +127,7 @@ class BracketPlacementTest {
         )
         every { tournaments.findActiveParticipants(tournamentId) } returns participants(5)
 
-        service.generate(tournamentId, "single_elim")
+        service.generate(tournamentId, appelant, true, "single_elim")
 
         verify { repo.deletePhaseMatches(phaseId) }
     }
@@ -151,7 +157,7 @@ class BracketPlacementTest {
                 type = PhaseType.single_elim,
             )
 
-        service.echangerEmplacements(m1.id!!, 1, m2.id!!, 2)
+        service.echangerEmplacements(m1.id!!, 1, m2.id!!, 2, appelant, true)
 
         // a1 part en slot 2 du match 2, b2 arrive en slot 1 du match 1 ;
         // les deux autres occupants ne bougent pas.
@@ -176,7 +182,7 @@ class BracketPlacementTest {
                 type = PhaseType.single_elim,
             )
 
-        service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1)
+        service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1, appelant, true)
 
         verify { repo.setParticipants(m1.id!!, null, null) }
         verify { repo.setParticipants(m2.id!!, a1, null) }
@@ -200,7 +206,7 @@ class BracketPlacementTest {
                 type = PhaseType.single_elim,
             )
 
-        service.echangerEmplacements(m.id!!, 1, m.id!!, 2)
+        service.echangerEmplacements(m.id!!, 1, m.id!!, 2, appelant, true)
 
         verify(exactly = 1) { repo.setParticipants(m.id!!, a2, a1) }
     }
@@ -220,7 +226,7 @@ class BracketPlacementTest {
         every { repo.findMatch(libre.id!!) } returns libre
 
         val erreur = assertFailsWith<ErreurMetier.Conflit> {
-            service.echangerEmplacements(joue.id!!, 1, libre.id!!, 1)
+            service.echangerEmplacements(joue.id!!, 1, libre.id!!, 1, appelant, true)
         }
         assertEquals("Un match déjà joué ne peut pas être réorganisé", erreur.message)
         verify(exactly = 0) { repo.setParticipants(any(), any(), any()) }
@@ -236,7 +242,7 @@ class BracketPlacementTest {
         every { repo.findMatch(m2.id!!) } returns m2
 
         assertFailsWith<ErreurMetier.Conflit> {
-            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1)
+            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1, appelant, true)
         }
         verify(exactly = 0) { repo.setParticipants(any(), any(), any()) }
     }
@@ -249,14 +255,14 @@ class BracketPlacementTest {
         every { repo.findMatch(m2.id!!) } returns m2
 
         assertFailsWith<ErreurMetier.Invalide> {
-            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 2)
+            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 2, appelant, true)
         }
     }
 
     @Test
     fun `un slot hors de 1 ou 2 est refuse`() {
         assertFailsWith<ErreurMetier.Invalide> {
-            service.echangerEmplacements(UUID.randomUUID(), 3, UUID.randomUUID(), 1)
+            service.echangerEmplacements(UUID.randomUUID(), 3, UUID.randomUUID(), 1, appelant, true)
         }
     }
 
@@ -268,7 +274,7 @@ class BracketPlacementTest {
         every { repo.findMatch(m2.id!!) } returns m2
 
         assertFailsWith<ErreurMetier.Invalide> {
-            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1)
+            service.echangerEmplacements(m1.id!!, 1, m2.id!!, 1, appelant, true)
         }
     }
 }

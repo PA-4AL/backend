@@ -16,3 +16,4 @@ contrat de messages), l'ajout d'une dépendance externe, un choix d'architecture
 | [0006](0006-tests-unitaires-sans-base.md) | Tests unitaires sans base de données | 2026-07-28 | accepté |
 | [0007](0007-erreurs-metier-et-http.md) | Séparer erreurs métier et codes HTTP | 2026-07-29 | accepté |
 | [0008](0008-formats-de-bracket.md) | Élimination double et round robin | 2026-07-29 | accepté |
+| [0009](0009-autorisation-par-objet.md) | Autoriser par objet, pas seulement par rôle | 2026-07-30 | accepté |

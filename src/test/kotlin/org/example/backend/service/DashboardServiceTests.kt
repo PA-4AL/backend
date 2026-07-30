@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 /**
  * Tests unitaires du tableau de bord — **sans base de données**.
@@ -112,8 +112,8 @@ class DashboardServiceTests {
 
         val item = service.activity().single()
 
-        assertTrue(item.html.contains("<b>Un participant</b>"), item.html)
-        assertTrue(item.html.contains("Rookie Cup"), item.html)
+        assertEquals("Un participant", item.sujet)
+        assertEquals("Rookie Cup", item.complement)
     }
 
     @Test
@@ -130,8 +130,35 @@ class DashboardServiceTests {
         val (fini, encours) = service.activity()
 
         assertEquals("finished", fini.kind)
-        assertEquals("<b>Pro League</b> est terminé.", fini.html)
+        assertEquals("Pro League", fini.sujet)
+        assertEquals("est terminé.", fini.action)
         assertEquals("live", encours.kind)
-        assertEquals("Tournoi <b>Rookie Cup</b> créé.", encours.html)
+        assertEquals("Rookie Cup", encours.sujet)
+        assertEquals("a été créé.", encours.action)
+    }
+
+    @Test
+    fun `aucun balisage ne sort du service`() {
+        // Régression : le fil d'activité renvoyait du HTML construit par
+        // concaténation, rendu tel quel par le frontend. Un tournoi nommé
+        // « <img src=x onerror=…> » exécutait donc du code chez tout organisateur.
+        // Le correctif n'est pas d'échapper mais de ne plus produire de balisage.
+        val nomHostile = "<img src=x onerror=alert(1)>"
+        val service = DashboardService(
+            FakeDashboardRepository(
+                registrations = listOf(registration(nomHostile, nomHostile, t0)),
+                tournaments = listOf(tournament(nomHostile, TournamentStatus.finished, t0)),
+            ),
+        )
+
+        service.activity().forEach { item ->
+            // La donnée est transmise intacte — c'est au frontend de l'afficher
+            // comme du texte — mais aucun champ ne contient de balise ajoutée par
+            // le serveur.
+            assertFalse(item.action.contains("<"), "action balisée : ${item.action}")
+        }
+        // Et le nom hostile ressort bien tel quel, sans être tronqué ni réécrit :
+        // il sera affiché comme du texte, jamais interprété.
+        assertEquals(nomHostile, service.activity().first().sujet)
     }
 }

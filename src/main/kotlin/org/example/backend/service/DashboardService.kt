@@ -9,7 +9,14 @@ import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
 
 /** Événement du fil d'activité, avant mise en forme finale. */
-private data class Event(val id: String, val kind: String, val html: String, val at: OffsetDateTime)
+private data class Event(
+    val id: String,
+    val kind: String,
+    val sujet: String,
+    val action: String,
+    val complement: String?,
+    val at: OffsetDateTime,
+)
 
 @Service
 class DashboardService(private val repo: DashboardRepository) {
@@ -29,12 +36,16 @@ class DashboardService(private val repo: DashboardRepository) {
 
     /** Fil d'activité réel : dernières inscriptions et derniers tournois créés. */
     fun activity(): List<ActivityItemDto> {
+        // Aucun balisage ici : le serveur transmet des données, le frontend décide
+        // de leur présentation. C'est ce qui rend l'injection impossible plutôt
+        // que simplement difficile.
         val registrations = repo.recentRegistrations(5).map { row ->
-            val who = row.participantName ?: "Un participant"
             Event(
                 id = "reg-${row.id}",
                 kind = "registration",
-                html = "<b>$who</b> s'est inscrit sur ${row.tournamentName}.",
+                sujet = row.participantName ?: "Un participant",
+                action = "s'est inscrit sur",
+                complement = row.tournamentName,
                 at = row.createdAt,
             )
         }
@@ -44,11 +55,9 @@ class DashboardService(private val repo: DashboardRepository) {
             Event(
                 id = "trn-${row.id}",
                 kind = if (finished) "finished" else "live",
-                html = if (finished) {
-                    "<b>${row.name}</b> est terminé."
-                } else {
-                    "Tournoi <b>${row.name}</b> créé."
-                },
+                sujet = row.name,
+                action = if (finished) "est terminé." else "a été créé.",
+                complement = null,
                 at = row.createdAt,
             )
         }
@@ -56,6 +65,15 @@ class DashboardService(private val repo: DashboardRepository) {
         return (registrations + tournaments)
             .sortedByDescending { it.at }
             .take(6)
-            .map { ActivityItemDto(it.id, it.kind, it.html, Display.relativeTime(it.at)) }
+            .map {
+                ActivityItemDto(
+                    id = it.id,
+                    kind = it.kind,
+                    sujet = it.sujet,
+                    action = it.action,
+                    complement = it.complement,
+                    time = Display.relativeTime(it.at),
+                )
+            }
     }
 }

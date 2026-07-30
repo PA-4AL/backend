@@ -39,8 +39,10 @@ class ExportServiceTest {
     private val bracket = mockk<BracketRepository>(relaxed = true)
     private val jobs = mockk<JobService>(relaxed = true)
     private val inscriptions = mockk<RegistrationRepository>(relaxed = true)
-    private val service = ExportService(tournaments, bracket, inscriptions, jobs)
+    private val droits = mockk<Droits>(relaxed = true)
+    private val service = ExportService(tournaments, bracket, inscriptions, jobs, droits)
 
+    private val appelant = UUID.randomUUID()
     private val tournamentId = UUID.randomUUID()
     private val phaseId = UUID.randomUUID()
     private val regA = UUID.randomUUID()
@@ -96,7 +98,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(any(), any(), any(), capture(matches), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         val m = matches.captured.single()
         // Les noms de clés sont le contrat : un camelCase ici et le worker
@@ -119,7 +121,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(any(), any(), any(), capture(matches), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         val transmis = matches.captured.single()
         assertEquals(2, transmis["score_a"])
@@ -137,7 +139,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(any(), any(), any(), capture(matches), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         assertTrue(matches.captured.isEmpty())
     }
@@ -155,7 +157,7 @@ class ExportServiceTest {
                 jobs.submitTournamentExport(any(), any(), any(), capture(matches), any())
             } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-            service.soumettre(tournamentId, null)
+            service.soumettre(tournamentId, appelant, true)
 
             assertTrue(
                 matches.captured.single()["status"] in connus,
@@ -174,7 +176,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(any(), any(), capture(teams), any(), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         val alpha = teams.captured.first { it["name"] == "Alpha" }
 
@@ -200,7 +202,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(any(), any(), capture(teams), any(), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         assertEquals(2, teams.captured.size)
         assertEquals(emptyList<Any>(), teams.captured.first()["players"])
@@ -214,7 +216,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(capture(type), any(), any(), any(), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         assertEquals("football_11v11", type.captured)
     }
@@ -227,7 +229,7 @@ class ExportServiceTest {
             jobs.submitTournamentExport(capture(type), any(), any(), any(), any())
         } returns JobDto(id = UUID.randomUUID(), type = "team_export", status = "processing")
 
-        service.soumettre(tournamentId, null)
+        service.soumettre(tournamentId, appelant, true)
 
         assertEquals("esport_5v5", type.captured)
     }
@@ -236,7 +238,7 @@ class ExportServiceTest {
     fun `un tournoi sans participant confirme n'est pas exporte`() {
         stub(participants = emptyList())
 
-        val erreur = assertFailsWith<ErreurMetier.Conflit> { service.soumettre(tournamentId, null) }
+        val erreur = assertFailsWith<ErreurMetier.Conflit> { service.soumettre(tournamentId, appelant, true) }
         assertEquals("Aucun participant confirmé à exporter", erreur.message)
         verify(exactly = 0) { jobs.submitTournamentExport(any(), any(), any(), any(), any()) }
     }
@@ -245,6 +247,6 @@ class ExportServiceTest {
     fun `un tournoi introuvable est signale`() {
         every { tournaments.findById(tournamentId) } returns null
 
-        assertFailsWith<ErreurMetier.Introuvable> { service.soumettre(tournamentId, null) }
+        assertFailsWith<ErreurMetier.Introuvable> { service.soumettre(tournamentId, appelant, true) }
     }
 }

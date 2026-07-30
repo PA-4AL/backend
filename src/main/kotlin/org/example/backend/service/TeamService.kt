@@ -17,7 +17,7 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
 
     fun mine(keycloakId: String, pseudo: String, email: String?): List<TeamDto> {
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
-        return repo.listMine(userId).map { toDto(it.id) }
+        return repo.listMine(userId).map { toDto(it.id, userId) }
     }
 
     fun get(teamId: UUID): TeamDto = repo.find(teamId)?.let { toDto(it.id) }
@@ -32,7 +32,7 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
         val tag = req.tag?.trim()?.take(8)?.ifEmpty { null }
         val userId = registrations.upsertUserByKeycloak(keycloakId, pseudo, email)
         val team = repo.create(name, tag, userId)
-        return toDto(team.id)
+        return toDto(team.id, userId)
     }
 
     /** Ajout au roster par le capitaine — pseudo existant ou joueur fantôme (spec §4.3). */
@@ -80,15 +80,23 @@ class TeamService(private val repo: TeamRepository, private val registrations: R
         }
     }
 
-    private fun toDto(teamId: UUID): TeamDto {
+    /**
+     * @param viewerId identifiant interne de l'appelant, quand il est connu — il
+     *   permet de dire au frontend s'il est capitaine, plutôt que de le lui faire
+     *   deviner à partir d'un pseudo.
+     */
+    private fun toDto(teamId: UUID, viewerId: UUID? = null): TeamDto {
         val team = repo.find(teamId)!!
+        val membres = repo.members(teamId)
         return TeamDto(
             id = team.id.toString(),
             name = team.name,
             tag = team.tag,
-            members = repo.members(teamId).map {
+            members = membres.map {
                 TeamMemberDto(it.userId.toString(), it.pseudo, it.role.literal)
             },
+            viewerIsCaptain = viewerId != null &&
+                membres.any { it.userId == viewerId && it.role == TeamMemberRole.captain },
         )
     }
 }

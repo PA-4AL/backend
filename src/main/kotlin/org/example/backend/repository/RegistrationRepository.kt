@@ -100,10 +100,18 @@ class RegistrationRepository(private val dsl: DSLContext) {
         .limit(1)
         .fetchOne(TEAMS.ID)
 
-    /** Joueur existant portant ce pseudo — même raison d'être qu'au-dessus. */
-    fun findUserByPseudo(pseudo: String): UUID? = dsl.select(USERS.ID)
+    /**
+     * Joueur **fantôme** existant portant ce pseudo — même raison d'être
+     * qu'au-dessus, mais restreint aux comptes sans identité Keycloak.
+     *
+     * La restriction est essentielle : sans elle, importer un fichier contenant
+     * le pseudo d'un joueur réellement inscrit rattachait **son compte** à
+     * l'équipe importée, sans son consentement. Un import ne doit pouvoir créer
+     * ou compléter que des identités qu'il a lui-même fabriquées.
+     */
+    fun findGhostUserByPseudo(pseudo: String): UUID? = dsl.select(USERS.ID)
         .from(USERS)
-        .where(USERS.PSEUDO.eq(pseudo))
+        .where(USERS.PSEUDO.eq(pseudo).and(USERS.KEYCLOAK_ID.isNull))
         .limit(1)
         .fetchOne(USERS.ID)
 

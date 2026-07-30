@@ -71,7 +71,9 @@ class ImportService(private val registrations: RegistrationRepository) {
                 if (pseudo.isNullOrEmpty()) return@forEachIndexed
                 val rang = (joueur["rank"] as? String)?.trim()?.ifEmpty { null }
 
-                val userExistant = registrations.findUserByPseudo(pseudo)
+                // Uniquement parmi les joueurs fantômes : un import ne doit pas
+                // s'approprier le compte d'un joueur réellement inscrit.
+                val userExistant = registrations.findGhostUserByPseudo(pseudo)
                 val userId = userExistant ?: registrations.insertGhostUser(pseudo).also { joueursCrees++ }
 
                 // Le premier joueur de la liste devient capitaine : le fichier ne

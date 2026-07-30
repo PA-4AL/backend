@@ -4,7 +4,11 @@ import org.example.backend.model.BracketDto
 import org.example.backend.model.GenerateBracketRequest
 import org.example.backend.model.ScoreRequest
 import org.example.backend.model.SwapSlotsRequest
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.service.BracketService
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -18,19 +22,28 @@ import java.util.UUID
  * (`/tournaments/…/bracket` et `/matches/…/score`). Le `@RequestMapping` de classe
  * ne porte donc que la version, héritée par toutes les méthodes.
  * Préfixe `/api/v1` appliqué par `WebMvcConfig`.
+ *
+ * **Deux niveaux d'autorisation**, et les deux sont nécessaires :
+ * `@PreAuthorize` vérifie le rôle porté par le jeton, le service vérifie que
+ * l'appelant est organisateur **de ce tournoi précis**. Le rôle seul autorisait
+ * n'importe quel organisateur à modifier le tournoi d'un autre.
  */
 @RestController
 @RequestMapping(version = "1+")
-class BracketV1Controller(private val service: BracketService) {
+class BracketV1Controller(private val service: BracketService, private val registrations: RegistrationRepository) {
 
     /** Consultation publique du bracket (spec : Visiteur). */
     @GetMapping("/tournaments/{id}/bracket")
     fun get(@PathVariable id: UUID): BracketDto = service.getBracket(id)
 
-    /** Génération / re-génération de l'arbre — authentifié, format au choix. */
+    /** Génération / re-génération de l'arbre. */
     @PostMapping("/tournaments/{id}/bracket/generate")
-    fun generate(@PathVariable id: UUID, @RequestBody(required = false) req: GenerateBracketRequest?): BracketDto =
-        service.generate(id, req?.format)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun generate(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @RequestBody(required = false) req: GenerateBracketRequest?,
+    ): BracketDto = service.generate(id, currentUserId(jwt), estAdmin(jwt), req?.format)
 
     /**
      * Échange deux emplacements de l'arbre — placement manuel des participants.
@@ -39,11 +52,47 @@ class BracketV1Controller(private val service: BracketService) {
      * Échanger avec un emplacement vide déplace le participant.
      */
     @PostMapping("/tournaments/{id}/bracket/swap")
-    fun swap(@PathVariable id: UUID, @RequestBody req: SwapSlotsRequest): BracketDto =
-        service.echangerEmplacements(req.fromMatchId, req.fromSlot, req.toMatchId, req.toSlot)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun swap(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @RequestBody req: SwapSlotsRequest,
+    ): BracketDto = service.echangerEmplacements(
+        req.fromMatchId,
+        req.fromSlot,
+        req.toMatchId,
+        req.toSlot,
+        currentUserId(jwt),
+        estAdmin(jwt),
+    )
 
     /** Saisie du score d'un match, avec propagation du vainqueur. */
     @PostMapping("/matches/{matchId}/score")
-    fun reportScore(@PathVariable matchId: UUID, @RequestBody score: ScoreRequest): BracketDto =
-        service.reportScore(matchId, score.scoreA, score.scoreB)
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun reportScore(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable matchId: UUID,
+        @RequestBody score: ScoreRequest,
+    ): BracketDto = service.reportScore(
+        matchId,
+        score.scoreA,
+        score.scoreB,
+        currentUserId(jwt),
+        estAdmin(jwt),
+    )
+
+    /** Identifiant interne de l'utilisateur, rattaché à son compte Keycloak. */
+    private fun currentUserId(jwt: Jwt): UUID = registrations.upsertUserByKeycloak(
+        jwt.subject,
+        jwt.getClaimAsString("preferred_username") ?: "Joueur",
+        jwt.getClaimAsString("email"),
+    )
+
+    /**
+     * L'administrateur plateforme passe outre le contrôle de propriété : c'est son
+     * rôle de modération globale, et il doit pouvoir intervenir sur un tournoi
+     * abandonné par son organisateur.
+     */
+    private fun estAdmin(jwt: Jwt): Boolean =
+        (jwt.getClaimAsMap("realm_access")?.get("roles") as? List<*>)?.contains("admin") == true
 }
