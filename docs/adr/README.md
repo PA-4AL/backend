@@ -17,3 +17,4 @@ contrat de messages), l'ajout d'une dépendance externe, un choix d'architecture
 | [0007](0007-erreurs-metier-et-http.md) | Séparer erreurs métier et codes HTTP | 2026-07-29 | accepté |
 | [0008](0008-formats-de-bracket.md) | Élimination double et round robin | 2026-07-29 | accepté |
 | [0009](0009-autorisation-par-objet.md) | Autoriser par objet, pas seulement par rôle | 2026-07-30 | accepté |
+| [0010](0010-annonces-en-direct.md) | Annonces en direct par WebSocket, sans diffusion inter-instances | 2026-07-30 | accepté |

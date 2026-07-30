@@ -95,6 +95,14 @@ class SecurityConfig(@param:Value("\${app.cors.allowed-origins}") private val al
                     // liveness probes) et par le smoke test de la pipeline de
                     // déploiement — donc avant toute authentification.
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                    // Flux d'annonces en direct. Non authentifié à dessein : un
+                    // navigateur ne peut pas poser d'en-tête sur une WebSocket, et
+                    // passer le jeton en paramètre d'URL le ferait apparaître dans
+                    // les journaux d'accès. Le canal ne transporte que ce qui est
+                    // déjà public — des résultats de matchs lisibles sur le bracket.
+                    // Le ciblage par destinataire se fait sur l'API authentifiée
+                    // (`/api/v1/announcements`), pas ici.
+                    .requestMatchers("/ws/**").permitAll()
                     // Une ligne par version : une nouvelle version d'API ne doit pas
                     // hériter silencieusement de l'accès public (docs/API-VERSIONING.md).
                     .requestMatchers(HttpMethod.GET, "/api/v1/tournaments/**").permitAll()

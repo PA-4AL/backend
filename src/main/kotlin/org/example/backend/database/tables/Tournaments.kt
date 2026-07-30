@@ -13,10 +13,12 @@ import kotlin.collections.List
 import org.example.backend.database.Public
 import org.example.backend.database.enums.TournamentStatus
 import org.example.backend.database.enums.TournamentVisibility
+import org.example.backend.database.keys.ANNOUNCEMENTS__ANNOUNCEMENTS_TOURNAMENT_ID_FKEY
 import org.example.backend.database.keys.PHASES__PHASES_TOURNAMENT_ID_FKEY
 import org.example.backend.database.keys.REGISTRATIONS__REGISTRATIONS_TOURNAMENT_ID_FKEY
 import org.example.backend.database.keys.TOURNAMENTS_PKEY
 import org.example.backend.database.keys.TOURNAMENT_ORGANIZERS__TOURNAMENT_ORGANIZERS_TOURNAMENT_ID_FKEY
+import org.example.backend.database.tables.Announcements.AnnouncementsPath
 import org.example.backend.database.tables.Phases.PhasesPath
 import org.example.backend.database.tables.Registrations.RegistrationsPath
 import org.example.backend.database.tables.Teams.TeamsPath
@@ -192,6 +194,22 @@ open class Tournaments(
     }
     override fun getSchema(): Schema? = if (aliased()) null else Public.PUBLIC
     override fun getPrimaryKey(): UniqueKey<TournamentsRecord> = TOURNAMENTS_PKEY
+
+    private lateinit var _announcements: AnnouncementsPath
+
+    /**
+     * Get the implicit to-many join path to the
+     * <code>public.announcements</code> table
+     */
+    fun announcements(): AnnouncementsPath {
+        if (!this::_announcements.isInitialized)
+            _announcements = AnnouncementsPath(this, null, ANNOUNCEMENTS__ANNOUNCEMENTS_TOURNAMENT_ID_FKEY.inverseKey)
+
+        return _announcements;
+    }
+
+    val announcements: AnnouncementsPath
+        get(): AnnouncementsPath = announcements()
 
     private lateinit var _phases: PhasesPath
 

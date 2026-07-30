@@ -4,6 +4,7 @@
 package org.example.backend.database.keys
 
 
+import org.example.backend.database.tables.Announcements
 import org.example.backend.database.tables.Disputes
 import org.example.backend.database.tables.GameAccounts
 import org.example.backend.database.tables.Jobs
@@ -18,6 +19,7 @@ import org.example.backend.database.tables.Teams
 import org.example.backend.database.tables.TournamentOrganizers
 import org.example.backend.database.tables.Tournaments
 import org.example.backend.database.tables.Users
+import org.example.backend.database.tables.records.AnnouncementsRecord
 import org.example.backend.database.tables.records.DisputesRecord
 import org.example.backend.database.tables.records.GameAccountsRecord
 import org.example.backend.database.tables.records.JobsRecord
@@ -43,6 +45,7 @@ import org.jooq.impl.Internal
 // UNIQUE and PRIMARY KEY definitions
 // -------------------------------------------------------------------------
 
+val ANNOUNCEMENTS_PKEY: UniqueKey<AnnouncementsRecord> = Internal.createUniqueKey(Announcements.ANNOUNCEMENTS, DSL.name("announcements_pkey"), arrayOf(Announcements.ANNOUNCEMENTS.ID), true)
 val DISPUTES_PKEY: UniqueKey<DisputesRecord> = Internal.createUniqueKey(Disputes.DISPUTES, DSL.name("disputes_pkey"), arrayOf(Disputes.DISPUTES.ID), true)
 val GAME_ACCOUNTS_PKEY: UniqueKey<GameAccountsRecord> = Internal.createUniqueKey(GameAccounts.GAME_ACCOUNTS, DSL.name("game_accounts_pkey"), arrayOf(GameAccounts.GAME_ACCOUNTS.ID), true)
 val JOBS_PKEY: UniqueKey<JobsRecord> = Internal.createUniqueKey(Jobs.JOBS, DSL.name("jobs_pkey"), arrayOf(Jobs.JOBS.ID), true)
@@ -66,6 +69,7 @@ val USERS_PKEY: UniqueKey<UsersRecord> = Internal.createUniqueKey(Users.USERS, D
 // FOREIGN KEY definitions
 // -------------------------------------------------------------------------
 
+val ANNOUNCEMENTS__ANNOUNCEMENTS_TOURNAMENT_ID_FKEY: ForeignKey<AnnouncementsRecord, TournamentsRecord> = Internal.createForeignKey(Announcements.ANNOUNCEMENTS, DSL.name("announcements_tournament_id_fkey"), arrayOf(Announcements.ANNOUNCEMENTS.TOURNAMENT_ID), org.example.backend.database.keys.TOURNAMENTS_PKEY, arrayOf(Tournaments.TOURNAMENTS.ID), true)
 val DISPUTES__DISPUTES_MATCH_ID_FKEY: ForeignKey<DisputesRecord, MatchesRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_match_id_fkey"), arrayOf(Disputes.DISPUTES.MATCH_ID), org.example.backend.database.keys.MATCHES_PKEY, arrayOf(Matches.MATCHES.ID), true)
 val DISPUTES__DISPUTES_OPENED_BY_FKEY: ForeignKey<DisputesRecord, UsersRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_opened_by_fkey"), arrayOf(Disputes.DISPUTES.OPENED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)
 val DISPUTES__DISPUTES_RESOLVED_BY_FKEY: ForeignKey<DisputesRecord, UsersRecord> = Internal.createForeignKey(Disputes.DISPUTES, DSL.name("disputes_resolved_by_fkey"), arrayOf(Disputes.DISPUTES.RESOLVED_BY), org.example.backend.database.keys.USERS_PKEY, arrayOf(Users.USERS.ID), true)

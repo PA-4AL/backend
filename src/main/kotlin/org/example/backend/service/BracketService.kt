@@ -32,6 +32,7 @@ class BracketService(
     private val repo: BracketRepository,
     private val inscriptions: RegistrationRepository,
     private val droits: Droits,
+    private val annonces: AnnonceService,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -167,6 +168,7 @@ class BracketService(
             }
         }
 
+        annonces.arbreGenere(tournamentId, planifies.size)
         return getBracket(tournamentId)
     }
 
@@ -329,9 +331,10 @@ class BracketService(
             if (termine) TournamentStatus.finished else TournamentStatus.ongoing,
         )
         // Le classement se fige à la fin, pas à chaque score : c'est un résultat,
-        // et il doit rester consultable et corrigeable après coup.
+        // et il doit rester consultable après coup.
         if (termine) figerLeClassement(tournamentId, match.phaseId!!)
 
+        annoncerApresScore(tournamentId, match.phaseId!!, matchId, winner, loser, scoreA, scoreB, termine)
         return getBracket(tournamentId)
     }
 
@@ -360,6 +363,86 @@ class BracketService(
                 inscriptions.updateFinalRank(registrationId, index + 1)
             }
         log.info("Classement figé pour le tournoi {} ({} inscriptions)", tournamentId, participants.size)
+    }
+
+    /**
+     * Annonces déclenchées par une saisie de score : fin du match, puis les
+     * débuts de matchs rendus possibles, puis la fin du tournoi.
+     *
+     * Les « débuts » sont déduits de l'état de la phase **après** propagation : un
+     * match dont les deux participants viennent d'être connus est un match qui
+     * peut commencer. Il n'existe pas d'action « démarrer un match » dans
+     * l'application — l'annoncer au moment où il devient jouable est la seule
+     * information disponible, et la plus utile aux joueurs concernés.
+     *
+     * Rien ici ne doit faire échouer la saisie : un score enregistré ne peut pas
+     * être annulé parce qu'une annonce n'est pas partie.
+     */
+    private fun annoncerApresScore(
+        tournamentId: UUID,
+        phaseId: UUID,
+        matchId: UUID,
+        winner: UUID,
+        loser: UUID,
+        scoreA: Int,
+        scoreB: Int,
+        termine: Boolean,
+    ) {
+        runCatching {
+            val noms = repo.findRegistrationInfo(tournamentId)
+            val nom = { id: UUID -> noms[id]?.displayName ?: "Un participant" }
+
+            annonces.finDeMatch(tournamentId, nom(winner), nom(loser), scoreA, scoreB)
+
+            // Matchs devenus jouables : deux participants connus, aucun résultat.
+            repo.findPhaseMatches(phaseId)
+                .filter { m ->
+                    m.status != MatchStatus.finished &&
+                        m.winnerId == null &&
+                        m.participant1Id != null &&
+                        m.participant2Id != null
+                }
+                .forEach { m ->
+                    annonces.debutDeMatch(tournamentId, nom(m.participant1Id!!), nom(m.participant2Id!!))
+                }
+
+            // Passage au tour suivant : tous les matchs du tour qui vient d'être
+            // joué sont terminés, et un tour suivant existe. Annoncé une seule fois
+            // — c'est la transition qui est l'information, pas l'état.
+            val matchs = repo.findPhaseMatches(phaseId)
+            val tourJoue = matchs.firstOrNull { it.id == matchId }?.round
+            if (!termine && tourJoue != null) {
+                val tourFini = matchs
+                    .filter { it.round == tourJoue }
+                    .all { it.status == MatchStatus.finished || it.status == MatchStatus.forfeited }
+                val tourSuivant = matchs.filter { (it.round ?: 0) > tourJoue }.minOfOrNull { it.round!! }
+                if (tourFini && tourSuivant != null) {
+                    annonces.tourSuivant(tournamentId, libelleDeTour(tourSuivant, matchs))
+                }
+            }
+
+            if (termine) {
+                annonces.tournoiTermine(tournamentId, getBracket(tournamentId).champion)
+            }
+        }.onFailure { log.warn("Annonces non publiées pour le tournoi {}", tournamentId, it) }
+    }
+
+    /**
+     * Libellé court d'un tour, pour une annonce.
+     *
+     * Volontairement plus simple que celui de `getBracket` : une notification n'a
+     * pas besoin de distinguer « finale du tableau des vainqueurs » de « grande
+     * finale », et rejouer ici toute la logique d'affichage la ferait diverger au
+     * premier changement. Le tableau concerné suffit à situer le tour.
+     */
+    private fun libelleDeTour(round: Int, matchs: List<MatchesRecord>): String {
+        val tableau = matchs.firstOrNull { it.round == round }?.bracket ?: BracketType.winner
+        return when (tableau) {
+            BracketType.group -> "journée $round"
+            BracketType.grand_final -> "grande finale"
+            BracketType.loser -> "tableau des perdants"
+            BracketType.winner -> "tour $round"
+        }
     }
 
     /** Le vainqueur du match en position p va dans le slot 1 (p impair) ou 2 du match suivant. */

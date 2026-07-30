@@ -4,6 +4,7 @@
 package org.example.backend.database.tables.references
 
 
+import org.example.backend.database.tables.Announcements
 import org.example.backend.database.tables.Disputes
 import org.example.backend.database.tables.GameAccounts
 import org.example.backend.database.tables.Jobs
@@ -20,6 +21,11 @@ import org.example.backend.database.tables.Tournaments
 import org.example.backend.database.tables.Users
 
 
+
+/**
+ * The table <code>public.announcements</code>.
+ */
+val ANNOUNCEMENTS: Announcements = Announcements.ANNOUNCEMENTS
 
 /**
  * The table <code>public.disputes</code>.

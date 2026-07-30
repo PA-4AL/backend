@@ -4,6 +4,7 @@
 package org.example.backend.database.indexes
 
 
+import org.example.backend.database.tables.Announcements
 import org.example.backend.database.tables.Jobs
 import org.example.backend.database.tables.Matches
 import org.example.backend.database.tables.Phases
@@ -19,6 +20,7 @@ import org.jooq.impl.Internal
 // INDEX definitions
 // -------------------------------------------------------------------------
 
+val IDX_ANNOUNCEMENTS_TOURNAMENT_DATE: Index = Internal.createIndex(DSL.name("idx_announcements_tournament_date"), Announcements.ANNOUNCEMENTS, arrayOf(Announcements.ANNOUNCEMENTS.TOURNAMENT_ID, Announcements.ANNOUNCEMENTS.CREATED_AT.desc()), false)
 val IDX_JOBS_STATUS: Index = Internal.createIndex(DSL.name("idx_jobs_status"), Jobs.JOBS, arrayOf(Jobs.JOBS.STATUS), false)
 val IDX_MATCHES_PHASE: Index = Internal.createIndex(DSL.name("idx_matches_phase"), Matches.MATCHES, arrayOf(Matches.MATCHES.PHASE_ID), false)
 val IDX_PHASES_TOURNAMENT: Index = Internal.createIndex(DSL.name("idx_phases_tournament"), Phases.PHASES, arrayOf(Phases.PHASES.TOURNAMENT_ID), false)

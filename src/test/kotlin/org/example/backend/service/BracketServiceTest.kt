@@ -31,7 +31,11 @@ class BracketServiceTest {
     // Droits mockés en relaxed : ils laissent passer, l'autorisation a ses
     // propres tests (DroitsTest). Ici on teste les règles du bracket.
     private val droits = mockk<Droits>(relaxed = true)
-    private val service = BracketService(tournaments, repo, inscriptions, droits)
+
+    // Annonces mockées : elles ont leurs propres tests, et une saisie de score
+    // ne doit jamais dépendre de leur bon fonctionnement.
+    private val annonces = mockk<AnnonceService>(relaxed = true)
+    private val service = BracketService(tournaments, repo, inscriptions, droits, annonces)
 
     private val appelant = UUID.randomUUID()
     private val phaseId = UUID.randomUUID()
