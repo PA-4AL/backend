@@ -59,6 +59,16 @@ data class TournamentDetailDto(
     val matchesTotal: Int,
     val remainingTeams: List<TeamRefDto>,
     val currentMatches: List<MatchRowDto>,
+    /**
+     * Le lecteur organise-t-il ce tournoi ?
+     *
+     * Nécessaire à l'interface pour n'afficher les actions d'organisation qu'à qui
+     * peut les réussir : un bouton qui échoue en 403 au clic est pire qu'un bouton
+     * absent. Le rôle seul ne suffit pas — un organisateur n'organise pas *tous*
+     * les tournois.
+     */
+    val viewerIsOrganizer: Boolean = false,
+    val viewerIsRegistered: Boolean = false,
 )
 
 /** Un jeu du tournoi avec son format de matchs (spec §4.1 : BO par round). */

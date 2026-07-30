@@ -52,7 +52,11 @@ class TournamentService(private val repository: TournamentRepository, private va
         }
     }
 
-    fun get(id: UUID): TournamentDetailDto? {
+    /**
+     * @param viewerId `null` pour un visiteur : la fiche reste publique, sans
+     *   annotation, donc sans action d'organisation proposée.
+     */
+    fun get(id: UUID, viewerId: UUID? = null): TournamentDetailDto? {
         val t = repository.findById(id) ?: return null
         val phases = repository.findPhases(id)
         val phase = phases.firstOrNull()
@@ -93,6 +97,8 @@ class TournamentService(private val repository: TournamentRepository, private va
             matchesTotal = total,
             remainingTeams = remainingTeams,
             currentMatches = currentMatches,
+            viewerIsOrganizer = viewerId != null && repository.estOrganisateur(id, viewerId),
+            viewerIsRegistered = viewerId != null && id in repository.idsAvecParticipationDe(viewerId),
         )
     }
 

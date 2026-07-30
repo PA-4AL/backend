@@ -187,6 +187,12 @@ class TournamentRepository(private val dsl: DSLContext) {
         return (parEquipe + solo).groupBy({ it.first }, { it.second })
     }
 
+    /** Change le statut du tournoi. */
+    fun updateStatus(tournamentId: UUID, status: TournamentStatus): Boolean = dsl.update(TOURNAMENTS)
+        .set(TOURNAMENTS.STATUS, status)
+        .where(TOURNAMENTS.ID.eq(tournamentId))
+        .execute() == 1
+
     /** (matchs joués, matchs au total) pour toutes les phases du tournoi. */
     fun countMatches(tournamentId: UUID): Pair<Int, Int> {
         val byStatus = dsl.select(MATCHES.STATUS, DSL.count())

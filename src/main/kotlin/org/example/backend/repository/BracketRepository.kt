@@ -99,6 +99,16 @@ class BracketRepository(private val dsl: DSLContext) {
             .execute()
     }
 
+    /**
+     * Statut d'un match, sans toucher au résultat.
+     *
+     * Distinct de [setResult] : démarrer un match n'en désigne pas le vainqueur.
+     */
+    fun setMatchStatus(matchId: UUID, status: MatchStatus): Boolean = dsl.update(MATCHES)
+        .set(MATCHES.STATUS, status)
+        .where(MATCHES.ID.eq(matchId))
+        .execute() == 1
+
     fun setResult(matchId: UUID, winnerId: UUID, status: MatchStatus) {
         dsl.update(MATCHES)
             .set(MATCHES.WINNER_ID, winnerId)

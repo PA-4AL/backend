@@ -66,6 +66,18 @@ class BracketV1Controller(private val service: BracketService, private val regis
         estAdmin(jwt),
     )
 
+    /**
+     * Démarre un match : le passe en cours et publie l'annonce « Début du match ».
+     *
+     * Une action explicite, parce que **les matchs d'un même tour ne se jouent pas
+     * en même temps** : les annoncer tous dès qu'ils deviennent jouables serait
+     * faux.
+     */
+    @PostMapping("/matches/{matchId}/start")
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun demarrer(@AuthenticationPrincipal jwt: Jwt, @PathVariable matchId: UUID): BracketDto =
+        service.demarrerMatch(matchId, currentUserId(jwt), estAdmin(jwt))
+
     /** Saisie du score d'un match, avec propagation du vainqueur. */
     @PostMapping("/matches/{matchId}/score")
     @PreAuthorize("hasAnyRole('organizer', 'admin')")

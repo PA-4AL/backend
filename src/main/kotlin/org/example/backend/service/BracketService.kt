@@ -339,6 +339,60 @@ class BracketService(
     }
 
     /**
+     * Démarre un match : le passe en cours et l'annonce.
+     *
+     * **Une action explicite, et non une déduction.** Le début de match était
+     * auparavant deviné : tout match dont les deux participants venaient d'être
+     * connus était annoncé comme commençant. C'était faux — les matchs d'un même
+     * tour ne se jouent pas en même temps, et l'ouverture d'un tour produisait
+     * quatre annonces simultanées de matchs qui n'avaient pas commencé.
+     *
+     * Démarrer un match fait aussi basculer le tournoi en cours s'il ne l'était
+     * pas : un tournoi dont un match est lancé n'est plus en inscriptions.
+     */
+    @Transactional
+    fun demarrerMatch(matchId: UUID, callerId: UUID, estAdmin: Boolean): BracketDto {
+        val match = repo.findMatch(matchId)
+            ?: throw ErreurMetier.Introuvable("Match introuvable")
+        val tournamentId = match.phaseId?.let { repo.findPhaseTournamentId(it) }
+        droits.exigerOrganisateurDePhase(tournamentId, callerId, estAdmin)
+
+        if (match.status == MatchStatus.finished || match.status == MatchStatus.forfeited) {
+            throw ErreurMetier.Conflit("Ce match est déjà terminé")
+        }
+        if (match.status == MatchStatus.ongoing) {
+            // Refus plutôt que silence : sans cela, un second clic republierait
+            // l'annonce et ferait croire à un nouveau match.
+            throw ErreurMetier.Conflit("Ce match est déjà en cours")
+        }
+        val p1 = match.participant1Id
+        val p2 = match.participant2Id
+        if (p1 == null || p2 == null) {
+            throw ErreurMetier.Conflit("Les deux participants ne sont pas encore connus")
+        }
+
+        repo.setMatchStatus(matchId, MatchStatus.ongoing)
+
+        // Le tournoi passe en cours, sauf s'il est déjà terminé ou annulé — un
+        // match lancé ne doit pas ressusciter un tournoi clos.
+        val statut = tournaments.findById(tournamentId!!)?.status
+        if (statut != TournamentStatus.finished && statut != TournamentStatus.cancelled) {
+            repo.setTournamentStatus(tournamentId, TournamentStatus.ongoing)
+        }
+
+        runCatching {
+            val noms = repo.findRegistrationInfo(tournamentId)
+            annonces.debutDeMatch(
+                tournamentId,
+                noms[p1]?.displayName ?: "Un participant",
+                noms[p2]?.displayName ?: "Un participant",
+            )
+        }.onFailure { log.warn("Annonce de début non publiée pour le match {}", matchId, it) }
+
+        return getBracket(tournamentId)
+    }
+
+    /**
      * Calcule et enregistre le classement final des inscriptions.
      *
      * Il était jusqu'ici recalculé à la volée par le worker à chaque export : donc
@@ -369,11 +423,12 @@ class BracketService(
      * Annonces déclenchées par une saisie de score : fin du match, puis les
      * débuts de matchs rendus possibles, puis la fin du tournoi.
      *
-     * Les « débuts » sont déduits de l'état de la phase **après** propagation : un
-     * match dont les deux participants viennent d'être connus est un match qui
-     * peut commencer. Il n'existe pas d'action « démarrer un match » dans
-     * l'application — l'annoncer au moment où il devient jouable est la seule
-     * information disponible, et la plus utile aux joueurs concernés.
+     * **Les débuts de match ne sont plus annoncés ici.** Ils l'étaient par
+     * déduction — tout match dont les deux participants venaient d'être connus
+     * était réputé commencer — ce qui était faux : les matchs d'un même tour ne se
+     * jouent pas en même temps, et l'ouverture d'un tour produisait quatre
+     * annonces simultanées de matchs qui n'avaient pas démarré. C'est désormais
+     * [demarrerMatch] qui l'annonce, sur une action explicite de l'organisateur.
      *
      * Rien ici ne doit faire échouer la saisie : un score enregistré ne peut pas
      * être annulé parce qu'une annonce n'est pas partie.
@@ -393,18 +448,6 @@ class BracketService(
             val nom = { id: UUID -> noms[id]?.displayName ?: "Un participant" }
 
             annonces.finDeMatch(tournamentId, nom(winner), nom(loser), scoreA, scoreB)
-
-            // Matchs devenus jouables : deux participants connus, aucun résultat.
-            repo.findPhaseMatches(phaseId)
-                .filter { m ->
-                    m.status != MatchStatus.finished &&
-                        m.winnerId == null &&
-                        m.participant1Id != null &&
-                        m.participant2Id != null
-                }
-                .forEach { m ->
-                    annonces.debutDeMatch(tournamentId, nom(m.participant1Id!!), nom(m.participant2Id!!))
-                }
 
             // Passage au tour suivant : tous les matchs du tour qui vient d'être
             // joué sont terminés, et un tour suivant existe. Annoncé une seule fois
