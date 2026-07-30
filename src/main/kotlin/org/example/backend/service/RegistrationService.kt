@@ -46,16 +46,25 @@ class RegistrationService(
         )
     }
 
-    fun pending(): List<PendingRegistrationDto> = repo.listPending().map {
-        PendingRegistrationDto(
-            registrationId = it.id.toString(),
-            participant = it.name,
-            tournamentId = it.tournamentId.toString(),
-            tournamentName = it.tournamentName,
-            status = it.status.literal,
-            registeredLabel = Display.relativeTime(it.createdAt),
-        )
-    }
+    /**
+     * Inscriptions à traiter par l'appelant.
+     *
+     * Un organisateur ne voit que celles de **ses** tournois : la version
+     * précédente exposait toutes celles de la plateforme, qu'il pouvait donc aussi
+     * valider. L'administrateur les voit toutes, c'est son rôle de modération.
+     */
+    fun pending(callerId: UUID, estAdmin: Boolean): List<PendingRegistrationDto> = repo
+        .listPending(if (estAdmin) null else tournaments.idsOrganisesPar(callerId))
+        .map {
+            PendingRegistrationDto(
+                registrationId = it.id.toString(),
+                participant = it.name,
+                tournamentId = it.tournamentId.toString(),
+                tournamentName = it.tournamentName,
+                status = it.status.literal,
+                registeredLabel = Display.relativeTime(it.createdAt),
+            )
+        }
 
     /** Inscription solo de l'utilisateur authentifié (spec §4.3). */
     @Transactional

@@ -11,6 +11,16 @@ data class TournamentSummaryDto(
     val maxParticipants: Int,
     val status: String, // draft | registration | check_in | ongoing | finished | cancelled
     val scheduleLabel: String,
+    /**
+     * Le lecteur organise-t-il ce tournoi ?
+     *
+     * Calculé par le serveur : c'est ce qui permet à l'interface de séparer « mes
+     * tournois » du reste sans que le client ait à connaître la table des
+     * organisateurs, ni à deviner quoi que ce soit.
+     */
+    val viewerIsOrganizer: Boolean = false,
+    /** Le lecteur y participe-t-il (inscription non désistée) ? */
+    val viewerIsRegistered: Boolean = false,
 )
 
 data class TeamRefDto(val code: String, val name: String, val color: String)

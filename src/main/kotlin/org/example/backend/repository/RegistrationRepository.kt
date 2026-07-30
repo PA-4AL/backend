@@ -32,9 +32,28 @@ class RegistrationRepository(private val dsl: DSLContext) {
         .orderBy(REGISTRATIONS.SEED.asc().nullsLast(), REGISTRATIONS.CREATED_AT.asc())
         .fetch(::toRow)
 
-    /** Inscriptions à traiter par un organisateur (en attente ou liste d'attente). */
-    fun listPending(): List<RegistrationRow> = baseSelect()
-        .where(REGISTRATIONS.STATUS.`in`(RegistrationStatus.pending, RegistrationStatus.waitlist))
+    /**
+     * Inscriptions à traiter, **restreintes aux tournois donnés**.
+     *
+     * La version précédente renvoyait toutes les inscriptions en attente de la
+     * plateforme : un organisateur voyait — et pouvait valider — celles des
+     * tournois des autres. Le filtre est ici une liste explicite plutôt qu'un
+     * `userId`, pour que l'appelant décide de son périmètre (les siens, ou tous
+     * pour un administrateur).
+     */
+    fun listPending(tournamentIds: Collection<UUID>?): List<RegistrationRow> = baseSelect()
+        .where(
+            REGISTRATIONS.STATUS.`in`(RegistrationStatus.pending, RegistrationStatus.waitlist)
+                .and(
+                    // `null` = aucun filtre (administrateur) ; une liste vide ne doit
+                    // rien renvoyer, et non tout renvoyer.
+                    if (tournamentIds == null) {
+                        org.jooq.impl.DSL.trueCondition()
+                    } else {
+                        REGISTRATIONS.TOURNAMENT_ID.`in`(tournamentIds)
+                    },
+                ),
+        )
         .orderBy(REGISTRATIONS.CREATED_AT.asc())
         .fetch(::toRow)
 

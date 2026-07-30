@@ -27,7 +27,30 @@ class TournamentService(private val repository: TournamentRepository, private va
     private val dateFmt = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.FRENCH)
     private val dayFmt = DateTimeFormatter.ofPattern("d MMM", Locale.FRENCH)
 
-    fun list(): List<TournamentSummaryDto> = repository.findAll().map { (t, participants) -> t.toSummary(participants) }
+    /**
+     * Liste des tournois, **annotée pour le lecteur**.
+     *
+     * Les deux drapeaux (`viewerIsOrganizer`, `viewerIsRegistered`) sont ce qui
+     * permet à l'interface de séparer « mes tournois » de « ouverts aux
+     * inscriptions » sans que le client ait à connaître la table des organisateurs
+     * ni à recouper les inscriptions lui-même.
+     *
+     * @param viewerId `null` pour un visiteur non authentifié : la liste reste
+     *   publique, simplement sans annotation.
+     */
+    fun list(viewerId: UUID?): List<TournamentSummaryDto> {
+        // Deux ensembles chargés une fois, plutôt qu'une requête par tournoi.
+        val organises = viewerId?.let { repository.idsOrganisesPar(it) } ?: emptySet()
+        val participations = viewerId?.let { repository.idsAvecParticipationDe(it) } ?: emptySet()
+
+        return repository.findAll().map { (t, participants) ->
+            t.toSummary(
+                participants = participants,
+                organise = t.id in organises,
+                inscrit = t.id in participations,
+            )
+        }
+    }
 
     fun get(id: UUID): TournamentDetailDto? {
         val t = repository.findById(id) ?: return null
@@ -117,7 +140,11 @@ class TournamentService(private val repository: TournamentRepository, private va
         return t.toSummary(0)
     }
 
-    private fun TournamentsRecord.toSummary(participants: Int): TournamentSummaryDto {
+    private fun TournamentsRecord.toSummary(
+        participants: Int,
+        organise: Boolean = false,
+        inscrit: Boolean = false,
+    ): TournamentSummaryDto {
         val phase = repository.findFirstPhase(this.id!!)
         return TournamentSummaryDto(
             id = id.toString(),
@@ -128,6 +155,8 @@ class TournamentService(private val repository: TournamentRepository, private va
             maxParticipants = maxParticipants ?: participants,
             status = status!!.literal,
             scheduleLabel = scheduleLabel(this),
+            viewerIsOrganizer = organise,
+            viewerIsRegistered = inscrit,
         )
     }
 
