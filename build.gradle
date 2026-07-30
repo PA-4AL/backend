@@ -29,6 +29,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jooq'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// Annonces en direct : WebSocket brute, sans STOMP ni SockJS — un seul canal
+	// texte suffit, et chaque couche ajoutée serait à exploiter et à déboguer.
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'

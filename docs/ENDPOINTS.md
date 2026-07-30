@@ -8,7 +8,7 @@
 >
 > **Source de vérité :** `src/main/kotlin/org/example/backend/controller/v1/`
 > et `.../model/*Dtos.kt`.
-> **Dernière mise à jour :** 30/07/2026 (29 endpoints en v1, + 1 endpoint interne, matérialisation des imports, rangs et classement final)
+> **Dernière mise à jour :** 30/07/2026 (33 endpoints en v1, + 1 endpoint interne, autorisation par objet, annonces en direct)
 
 Base URL : `http://localhost:8080` en local (`VITE_API_URL` côté frontend).
 Tous les corps de requête et de réponse sont en `application/json`.
@@ -710,3 +710,37 @@ Pour éviter de les chercher — détail et priorisation dans
 - **Litiges, forfaits, disqualifications, planification** des matchs (spec §4.4).
 - **Notifications** configurables (spec §5).
 - **Temps réel** (WebSocket / SSE) pour les brackets et scores (spec §5).
+
+---
+
+## Annonces d'un tournoi
+
+| # | Méthode | Route | Auth | Succès |
+|---|---|---|---|---|
+| 30 | GET | `/api/v1/tournaments/{id}/announcements` | public | 200 |
+| 31 | GET | `/api/v1/announcements` | JWT | 200 |
+| 32 | POST | `/api/v1/announcements/seen` | JWT | 204 |
+| 33 | POST | `/api/v1/registrations/{id}/check-in` | JWT organisateur | 200 |
+
+**30** — annonces d'un tournoi, **publiques** comme le bracket qu'elles commentent :
+elles ne disent rien qu'un spectateur ne lise déjà sur l'arbre.
+
+**31** — la cloche du lecteur : `{ annonces: [...], nonLues: n }`, agrégeant les
+tournois où il est **engagé** (organisateur ou participant). C'est ici que se joue
+le ciblage : un administrateur n'est pas abonné aux tournois qu'il n'organise pas.
+
+**32** — remet `nonLues` à zéro (`users.announcements_seen_at`).
+
+### Flux en direct
+
+`wss://api.patournament.fr/ws/annonces?tournoi=<uuid>` — WebSocket brute, un
+message JSON par annonce : `{ id, tournamentId, kind, message }`.
+
+`kind` ∈ `match_start` | `match_end` | `round_advance` | `bracket_generated` |
+`tournament_finished`.
+
+> **Deux limites à connaître**, détaillées dans `docs/adr/0010-annonces-en-direct.md` :
+> le canal n'est **pas authentifié** (un navigateur ne peut pas poser d'en-tête sur
+> une WebSocket) et ne transporte donc que des données déjà publiques ; et il n'y a
+> **pas de diffusion inter-instances** — une annonce peut manquer en direct si le
+> client est servi par une autre instance Cloud Run. Elle apparaît au rechargement.

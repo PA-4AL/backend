@@ -125,6 +125,11 @@ open class Users(
      */
     val AVATAR_URL: TableField<UsersRecord, String?> = createField(DSL.name("avatar_url"), SQLDataType.CLOB, this, "")
 
+    /**
+     * The column <code>public.users.announcements_seen_at</code>.
+     */
+    val ANNOUNCEMENTS_SEEN_AT: TableField<UsersRecord, OffsetDateTime?> = createField(DSL.name("announcements_seen_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6), this, "")
+
     private constructor(alias: Name, aliased: Table<UsersRecord>?): this(alias, null, null, null, aliased, null, null)
     private constructor(alias: Name, aliased: Table<UsersRecord>?, parameters: Array<Field<*>?>?): this(alias, null, null, null, aliased, parameters, null)
     private constructor(alias: Name, aliased: Table<UsersRecord>?, where: Condition?): this(alias, null, null, null, aliased, null, where)

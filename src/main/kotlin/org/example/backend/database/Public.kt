@@ -6,6 +6,7 @@ package org.example.backend.database
 
 import kotlin.collections.List
 
+import org.example.backend.database.tables.Announcements
 import org.example.backend.database.tables.Disputes
 import org.example.backend.database.tables.GameAccounts
 import org.example.backend.database.tables.Jobs
@@ -37,6 +38,11 @@ open class Public : SchemaImpl("public", DefaultCatalog.DEFAULT_CATALOG) {
          */
         val PUBLIC: Public = Public()
     }
+
+    /**
+     * The table <code>public.announcements</code>.
+     */
+    val ANNOUNCEMENTS: Announcements get() = Announcements.ANNOUNCEMENTS
 
     /**
      * The table <code>public.disputes</code>.
@@ -111,6 +117,7 @@ open class Public : SchemaImpl("public", DefaultCatalog.DEFAULT_CATALOG) {
     override fun getCatalog(): Catalog = DefaultCatalog.DEFAULT_CATALOG
 
     override fun getTables(): List<Table<*>> = listOf(
+        Announcements.ANNOUNCEMENTS,
         Disputes.DISPUTES,
         GameAccounts.GAME_ACCOUNTS,
         Jobs.JOBS,

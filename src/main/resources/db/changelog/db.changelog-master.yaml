@@ -10,3 +10,5 @@ databaseChangeLog:
       file: db/changelog/0004-rangs-et-classement.sql
   - include:
       file: db/changelog/0005-gabarit-de-fichier.sql
+  - include:
+      file: db/changelog/0006-annonces.sql
