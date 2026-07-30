@@ -63,6 +63,15 @@ data class CreateTournamentRequest(
     /** Multi-jeu (spec §6.2) : une phase par jeu, chacune avec son BO. */
     val games: List<GameSpec> = emptyList(),
     val format: String = "single_elim",
+    /**
+     * Gabarit de fichier Excel pour l'import et l'export : `esport_5v5` (Pseudo,
+     * Rang) ou `football_11v11` (Nom, Prénom, Poste, Numéro).
+     *
+     * Facultatif, esport par défaut. C'est une propriété de la discipline : elle
+     * était auparavant devinée à partir de la taille d'équipe, ce qui se trompait
+     * dès qu'un tournoi de football ne se jouait pas à 11.
+     */
+    val fileTemplate: String? = null,
     val teamSize: Int = 1,
     val maxParticipants: Int? = null,
     val visibility: String = "public",

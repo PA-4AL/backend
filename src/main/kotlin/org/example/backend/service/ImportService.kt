@@ -15,6 +15,16 @@ data class BilanImport(
     val joueursCrees: Int,
     val joueursRattaches: Int,
     val inscriptions: Int,
+    /**
+     * Équipes dont l'effectif ne correspond pas au format du tournoi.
+     *
+     * **Signalées, pas refusées.** L'inscription manuelle d'une équipe exige un
+     * roster complet, mais un import est massif : rejeter tout un fichier pour une
+     * équipe incomplète obligerait l'organisateur à le corriger en aveugle. Il est
+     * plus utile de tout créer et de lui dire lesquelles vérifier — c'est lui qui
+     * sait si un joueur manquant arrivera.
+     */
+    val equipesIncompletes: List<String> = emptyList(),
 )
 
 /**
@@ -44,12 +54,17 @@ class ImportService(private val registrations: RegistrationRepository) {
      * @param equipes structure rendue par le worker : `[{name, players:[{username, rank}]}]`
      */
     @Transactional
-    fun materialiser(tournamentId: UUID?, equipes: List<Map<String, Any?>>): BilanImport {
+    fun materialiser(
+        tournamentId: UUID?,
+        equipes: List<Map<String, Any?>>,
+        effectifAttendu: Int? = null,
+    ): BilanImport {
         var equipesCreees = 0
         var equipesExistantes = 0
         var joueursCrees = 0
         var joueursRattaches = 0
         var inscriptions = 0
+        val incompletes = mutableListOf<String>()
 
         equipes.forEach { equipe ->
             val nom = (equipe["name"] as? String)?.trim()
@@ -84,6 +99,10 @@ class ImportService(private val registrations: RegistrationRepository) {
                 joueursRattaches++
             }
 
+            if (effectifAttendu != null && effectifAttendu > 1 && joueurs.size != effectifAttendu) {
+                incompletes += "$nom (${joueurs.size}/$effectifAttendu)"
+            }
+
             if (tournamentId != null && !registrations.existsForTeam(tournamentId, teamId)) {
                 // Confirmée d'emblée : c'est l'organisateur qui importe le fichier,
                 // la validation a déjà eu lieu hors de l'application.
@@ -92,7 +111,14 @@ class ImportService(private val registrations: RegistrationRepository) {
             }
         }
 
-        val bilan = BilanImport(equipesCreees, equipesExistantes, joueursCrees, joueursRattaches, inscriptions)
+        val bilan = BilanImport(
+            equipesCreees,
+            equipesExistantes,
+            joueursCrees,
+            joueursRattaches,
+            inscriptions,
+            incompletes,
+        )
         log.info(
             "Import matérialisé : {} équipe(s) créée(s), {} existante(s), {} joueur(s) créé(s), {} inscription(s)",
             bilan.equipesCreees,
@@ -100,6 +126,9 @@ class ImportService(private val registrations: RegistrationRepository) {
             bilan.joueursCrees,
             bilan.inscriptions,
         )
+        if (incompletes.isNotEmpty()) {
+            log.warn("Effectif incomplet pour : {}", incompletes.joinToString(", "))
+        }
         return bilan
     }
 }

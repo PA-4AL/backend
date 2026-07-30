@@ -76,6 +76,10 @@ open class TournamentsRecord private constructor() : UpdatableRecordImpl<Tournam
         set(value): Unit = set(13, value)
         get(): OffsetDateTime? = get(13) as OffsetDateTime?
 
+    open var fileTemplate: String?
+        set(value): Unit = set(14, value)
+        get(): String? = get(14) as String?
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -85,7 +89,7 @@ open class TournamentsRecord private constructor() : UpdatableRecordImpl<Tournam
     /**
      * Create a detached, initialised TournamentsRecord
      */
-    constructor(id: UUID? = null, name: String, description: String? = null, visibility: TournamentVisibility? = null, status: TournamentStatus? = null, teamSize: Int? = null, maxParticipants: Int? = null, checkInRequired: Boolean? = null, checkInWindowMinutes: Int? = null, registrationOpenAt: OffsetDateTime? = null, registrationCloseAt: OffsetDateTime? = null, startAt: OffsetDateTime? = null, endAt: OffsetDateTime? = null, createdAt: OffsetDateTime? = null): this() {
+    constructor(id: UUID? = null, name: String, description: String? = null, visibility: TournamentVisibility? = null, status: TournamentStatus? = null, teamSize: Int? = null, maxParticipants: Int? = null, checkInRequired: Boolean? = null, checkInWindowMinutes: Int? = null, registrationOpenAt: OffsetDateTime? = null, registrationCloseAt: OffsetDateTime? = null, startAt: OffsetDateTime? = null, endAt: OffsetDateTime? = null, createdAt: OffsetDateTime? = null, fileTemplate: String? = null): this() {
         this.id = id
         this.name = name
         this.description = description
@@ -100,6 +104,7 @@ open class TournamentsRecord private constructor() : UpdatableRecordImpl<Tournam
         this.startAt = startAt
         this.endAt = endAt
         this.createdAt = createdAt
+        this.fileTemplate = fileTemplate
         resetChangedOnNotNull()
     }
 }

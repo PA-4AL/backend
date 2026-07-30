@@ -9,6 +9,7 @@ import org.example.backend.model.TournamentFileType
 import org.example.backend.model.WorkerRequest
 import org.example.backend.model.WorkerResponse
 import org.example.backend.repository.JobRepository
+import org.example.backend.repository.TournamentRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -33,6 +34,7 @@ class JobService(
     private val publisher: PubSubPublisher,
     private val mapper: ObjectMapper,
     private val imports: ImportService,
+    private val tournaments: TournamentRepository,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -197,7 +199,22 @@ class JobService(
             return
         }
         val tournamentId = tournoiCible(jobId)
-        runCatching { imports.materialiser(tournamentId, equipes) }
+        // L'effectif attendu vient du tournoi : sans tournoi visé, il n'y a pas de
+        // format auquel comparer.
+        val effectif = tournamentId?.let { tournaments.findById(it)?.teamSize }
+        runCatching { imports.materialiser(tournamentId, equipes, effectif) }
+            .onSuccess { bilan ->
+                if (bilan.equipesIncompletes.isNotEmpty()) {
+                    // Consigné dans le job : c'est là que le frontend va lire, et
+                    // l'organisateur doit pouvoir retrouver l'information après coup.
+                    jobs.saveResult(
+                        jobId,
+                        mapper.writeValueAsString(
+                            mapOf("equipes_incompletes" to bilan.equipesIncompletes),
+                        ),
+                    )
+                }
+            }
             .onFailure { e ->
                 log.error("Matérialisation de l'import {} en échec", jobId, e)
                 jobs.saveResult(

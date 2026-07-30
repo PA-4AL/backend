@@ -152,6 +152,60 @@ class ImportServiceTest {
     }
 
     @Test
+    fun `un effectif incomplet est signale sans bloquer l'import`() {
+        // L'inscription manuelle d'une équipe exige un roster complet, mais un
+        // import est massif : rejeter tout un fichier pour une équipe incomplète
+        // obligerait l'organisateur à le corriger en aveugle. On crée tout et on
+        // lui dit quoi vérifier — lui seul sait si le joueur manquant arrivera.
+        val teamId = UUID.randomUUID()
+        every { repo.findTeamByName(any()) } returns null
+        every { repo.insertGhostTeam(any()) } returns teamId
+        every { repo.findGhostUserByPseudo(any()) } returns null
+        every { repo.insertGhostUser(any()) } returns UUID.randomUUID()
+
+        val bilan = service.materialiser(
+            null,
+            listOf(equipe("Nova", "carol" to "Or", "dave" to "Or")),
+            effectifAttendu = 5,
+        )
+
+        assertEquals(listOf("Nova (2/5)"), bilan.equipesIncompletes)
+        // Créée malgré tout : c'est un signalement, pas un refus.
+        assertEquals(1, bilan.equipesCreees)
+    }
+
+    @Test
+    fun `un effectif complet ne declenche aucun signalement`() {
+        val teamId = UUID.randomUUID()
+        every { repo.findTeamByName(any()) } returns null
+        every { repo.insertGhostTeam(any()) } returns teamId
+        every { repo.findGhostUserByPseudo(any()) } returns null
+        every { repo.insertGhostUser(any()) } returns UUID.randomUUID()
+
+        val bilan = service.materialiser(
+            null,
+            listOf(equipe("Nova", "a" to null, "b" to null, "c" to null)),
+            effectifAttendu = 3,
+        )
+
+        assertEquals(emptyList(), bilan.equipesIncompletes)
+    }
+
+    @Test
+    fun `un tournoi solo ne compare aucun effectif`() {
+        // teamSize = 1 : chaque « équipe » est un joueur, comparer n'aurait pas de
+        // sens et signalerait tout le fichier.
+        every { repo.findTeamByName(any()) } returns null
+        every { repo.insertGhostTeam(any()) } returns UUID.randomUUID()
+        every { repo.findGhostUserByPseudo(any()) } returns null
+        every { repo.insertGhostUser(any()) } returns UUID.randomUUID()
+
+        val bilan = service.materialiser(null, listOf(equipe("Solo", "zed" to "Or")), effectifAttendu = 1)
+
+        assertEquals(emptyList(), bilan.equipesIncompletes)
+    }
+
+    @Test
     fun `une equipe sans nom est ignoree sans faire echouer l'import`() {
         val bilan = service.materialiser(null, listOf(mapOf("name" to "  ", "players" to emptyList<Any>())))
 

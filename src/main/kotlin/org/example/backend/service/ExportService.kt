@@ -82,7 +82,7 @@ class ExportService(
         val ordonnes = participants.sortedBy { classements[it.registrationId] ?: Int.MAX_VALUE }
 
         return jobs.submitTournamentExport(
-            tournamentType = typeDeFichier(tournoi.teamSize).literal,
+            tournamentType = gabarit(tournoi).literal,
             tournamentName = tournoi.name,
             teams = ordonnes.map { p ->
                 mapOf(
@@ -104,12 +104,20 @@ class ExportService(
     }
 
     /**
-     * Le worker ne connaît que deux gabarits de fichier. La taille d'équipe est
-     * ce qui les distingue : 11 joueurs relèvent du modèle football, tout le
-     * reste du modèle esport.
+     * Gabarit de fichier du tournoi.
+     *
+     * Il était **déduit** de la taille d'équipe (`teamSize == 11` → football), ce
+     * qui tenait pour un football à 11 et se trompait pour tout le reste : un 7v7
+     * de football recevait les colonnes Pseudo/Rang au lieu de
+     * Nom/Prénom/Poste/Numéro. Le gabarit dépend de la **discipline**, qu'aucune
+     * heuristique sur un nombre de joueurs ne peut deviner — il est désormais
+     * choisi à la création (`tournaments.file_template`).
+     *
+     * `null` = esport, le cas par défaut : les tournois créés avant cette colonne
+     * n'en sont pas privés.
      */
-    private fun typeDeFichier(teamSize: Int?): TournamentFileType =
-        if (teamSize == 11) TournamentFileType.FOOTBALL_11V11 else TournamentFileType.ESPORT_5V5
+    private fun gabarit(tournoi: org.example.backend.database.tables.records.TournamentsRecord): TournamentFileType =
+        tournoi.fileTemplate?.let { TournamentFileType.from(it) } ?: TournamentFileType.ESPORT_5V5
 
     /**
      * Le worker n'attend que `pending` | `in_progress` | `finished`. Les statuts

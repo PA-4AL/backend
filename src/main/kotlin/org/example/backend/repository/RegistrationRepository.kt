@@ -171,6 +171,34 @@ class RegistrationRepository(private val dsl: DSLContext) {
         .fetchOne()!!
         .get(REGISTRATIONS.ID)!!
 
+    /**
+     * Tournoi et statut d'une inscription — nécessaires pour autoriser une action
+     * (organisateur de CE tournoi) et pour décider d'un repêchage.
+     */
+    fun findTournamentAndStatus(registrationId: UUID): Pair<UUID, RegistrationStatus>? =
+        dsl.select(REGISTRATIONS.TOURNAMENT_ID, REGISTRATIONS.STATUS)
+            .from(REGISTRATIONS)
+            .where(REGISTRATIONS.ID.eq(registrationId))
+            .fetchOne { r -> r.get(REGISTRATIONS.TOURNAMENT_ID)!! to r.get(REGISTRATIONS.STATUS)!! }
+
+    /**
+     * Plus ancienne inscription en liste d'attente, s'il en existe une.
+     *
+     * La liste d'attente ne fonctionnait que dans un sens : une inscription
+     * basculait en `waitlist` quand le tournoi était complet, mais personne n'en
+     * sortait jamais quand une place se libérait. L'ordre d'arrivée est le seul
+     * critère défendable — premier arrivé, premier repêché.
+     */
+    fun findPremierEnAttente(tournamentId: UUID): UUID? = dsl.select(REGISTRATIONS.ID)
+        .from(REGISTRATIONS)
+        .where(
+            REGISTRATIONS.TOURNAMENT_ID.eq(tournamentId)
+                .and(REGISTRATIONS.STATUS.eq(RegistrationStatus.waitlist)),
+        )
+        .orderBy(REGISTRATIONS.CREATED_AT.asc())
+        .limit(1)
+        .fetchOne(REGISTRATIONS.ID)
+
     fun findStatus(registrationId: UUID): RegistrationStatus? = dsl.select(REGISTRATIONS.STATUS)
         .from(REGISTRATIONS)
         .where(REGISTRATIONS.ID.eq(registrationId))

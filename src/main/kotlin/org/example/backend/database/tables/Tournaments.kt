@@ -8,6 +8,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import kotlin.collections.Collection
+import kotlin.collections.List
 
 import org.example.backend.database.Public
 import org.example.backend.database.enums.TournamentStatus
@@ -22,6 +23,7 @@ import org.example.backend.database.tables.Teams.TeamsPath
 import org.example.backend.database.tables.TournamentOrganizers.TournamentOrganizersPath
 import org.example.backend.database.tables.Users.UsersPath
 import org.example.backend.database.tables.records.TournamentsRecord
+import org.jooq.Check
 import org.jooq.Condition
 import org.jooq.Field
 import org.jooq.ForeignKey
@@ -152,6 +154,11 @@ open class Tournaments(
      */
     val CREATED_AT: TableField<TournamentsRecord, OffsetDateTime?> = createField(DSL.name("created_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "")
 
+    /**
+     * The column <code>public.tournaments.file_template</code>.
+     */
+    val FILE_TEMPLATE: TableField<TournamentsRecord, String?> = createField(DSL.name("file_template"), SQLDataType.VARCHAR, this, "")
+
     private constructor(alias: Name, aliased: Table<TournamentsRecord>?): this(alias, null, null, null, aliased, null, null)
     private constructor(alias: Name, aliased: Table<TournamentsRecord>?, parameters: Array<Field<*>?>?): this(alias, null, null, null, aliased, parameters, null)
     private constructor(alias: Name, aliased: Table<TournamentsRecord>?, where: Condition?): this(alias, null, null, null, aliased, null, where)
@@ -254,6 +261,9 @@ open class Tournaments(
      */
     val tournamentOrganizersUserIdFkey: UsersPath
         get(): UsersPath = tournamentOrganizers().users()
+    override fun getChecks(): List<Check<TournamentsRecord>> = listOf(
+        Internal.createCheck(this, DSL.name("tournaments_file_template_connu"), "(((file_template IS NULL) OR ((file_template)::text = ANY ((ARRAY['esport_5v5'::character varying, 'football_11v11'::character varying])::text[]))))", true)
+    )
     override fun `as`(alias: String): Tournaments = Tournaments(DSL.name(alias), this)
     override fun `as`(alias: Name): Tournaments = Tournaments(alias, this)
     override fun `as`(alias: Table<*>): Tournaments = Tournaments(alias.qualifiedName, this)

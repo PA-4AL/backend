@@ -12,6 +12,7 @@ import org.example.backend.model.WorkerError
 import org.example.backend.model.WorkerResponse
 import org.example.backend.repository.JobRepository
 import org.example.backend.repository.JobRow
+import org.example.backend.repository.TournamentRepository
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
@@ -29,7 +30,8 @@ class JobServiceTest {
     private val publisher = mockk<PubSubPublisher>(relaxed = true)
     private val mapper = JsonMapper.builder().build()
     private val imports = mockk<ImportService>(relaxed = true)
-    private val service = JobService(jobs, publisher, mapper, imports)
+    private val tournoisRepo = mockk<TournamentRepository>(relaxed = true)
+    private val service = JobService(jobs, publisher, mapper, imports, tournoisRepo)
 
     private val jobId = UUID.randomUUID()
 
