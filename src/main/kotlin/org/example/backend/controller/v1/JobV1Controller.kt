@@ -44,10 +44,14 @@ class JobV1Controller(
     @PostMapping("/tournaments/{id}/export")
     @PreAuthorize("hasAnyRole('organizer', 'admin')")
     fun exportTournament(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): JobDto =
-        exports.soumettre(id, currentUserId(jwt))
+        exports.soumettre(id, currentUserId(jwt), estAdmin(jwt))
 
     @GetMapping("/jobs/{id}")
     fun status(@PathVariable id: UUID): JobDto = jobs.get(id)
+
+    /** L'administrateur plateforme passe outre le contrôle de propriété. */
+    private fun estAdmin(jwt: Jwt): Boolean =
+        (jwt.getClaimAsMap("realm_access")?.get("roles") as? List<*>)?.contains("admin") == true
 
     /** Identifiant interne de l'utilisateur, rattaché à son compte Keycloak. */
     private fun currentUserId(jwt: Jwt): UUID = registrations.upsertUserByKeycloak(

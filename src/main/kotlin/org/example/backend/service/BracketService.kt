@@ -31,6 +31,7 @@ class BracketService(
     private val tournaments: TournamentRepository,
     private val repo: BracketRepository,
     private val inscriptions: RegistrationRepository,
+    private val droits: Droits,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -56,9 +57,10 @@ class BracketService(
     }
 
     @Transactional
-    fun generate(tournamentId: UUID, format: String? = null): BracketDto {
+    fun generate(tournamentId: UUID, callerId: UUID, estAdmin: Boolean, format: String? = null): BracketDto {
         tournaments.findById(tournamentId)
             ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
+        droits.exigerOrganisateur(tournamentId, callerId, estAdmin)
 
         val phase = tournaments.findFirstPhase(tournamentId)
             ?: throw ErreurMetier.Conflit("Le tournoi n'a aucune phase")
@@ -202,7 +204,14 @@ class BracketService(
      *   l'échange mettrait deux fois le même participant dans un match.
      */
     @Transactional
-    fun echangerEmplacements(matchA: UUID, slotA: Int, matchB: UUID, slotB: Int): BracketDto {
+    fun echangerEmplacements(
+        matchA: UUID,
+        slotA: Int,
+        matchB: UUID,
+        slotB: Int,
+        callerId: UUID,
+        estAdmin: Boolean,
+    ): BracketDto {
         if (slotA !in 1..2 || slotB !in 1..2) {
             throw ErreurMetier.Invalide("Un slot vaut 1 ou 2")
         }
@@ -215,6 +224,11 @@ class BracketService(
         if (a.phaseId != b.phaseId) {
             throw ErreurMetier.Invalide("Les deux emplacements doivent être dans la même phase")
         }
+        droits.exigerOrganisateurDePhase(
+            a.phaseId?.let { repo.findPhaseTournamentId(it) },
+            callerId,
+            estAdmin,
+        )
 
         // Déplacer un participant hors d'un match joué invaliderait son résultat.
         listOf(a, b).forEach { m ->
@@ -265,12 +279,19 @@ class BracketService(
        ------------------------------------------------------------ */
 
     @Transactional
-    fun reportScore(matchId: UUID, scoreA: Int, scoreB: Int): BracketDto {
+    fun reportScore(matchId: UUID, scoreA: Int, scoreB: Int, callerId: UUID, estAdmin: Boolean): BracketDto {
         if (scoreA == scoreB) {
             throw ErreurMetier.Invalide("Pas de match nul en élimination directe")
         }
         val match = repo.findMatch(matchId)
             ?: throw ErreurMetier.Introuvable("Match introuvable")
+        // Saisir un score est un acte d'organisateur : le contrôle passe par la
+        // phase, un match ne connaissant pas son tournoi directement.
+        droits.exigerOrganisateurDePhase(
+            match.phaseId?.let { repo.findPhaseTournamentId(it) },
+            callerId,
+            estAdmin,
+        )
         if (match.status == MatchStatus.finished) {
             throw ErreurMetier.Conflit("Match déjà terminé")
         }

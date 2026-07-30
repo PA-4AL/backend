@@ -39,7 +39,7 @@ class ImportServiceTest {
         val bob = UUID.randomUUID()
         every { repo.findTeamByName("Les Renards") } returns null
         every { repo.insertGhostTeam("Les Renards") } returns teamId
-        every { repo.findUserByPseudo(any()) } returns null
+        every { repo.findGhostUserByPseudo(any()) } returns null
         every { repo.insertGhostUser("alice") } returns alice
         every { repo.insertGhostUser("bob") } returns bob
         every { repo.existsForTeam(tournamentId, teamId) } returns false
@@ -66,7 +66,7 @@ class ImportServiceTest {
         val premier = UUID.randomUUID()
         every { repo.findTeamByName(any()) } returns null
         every { repo.insertGhostTeam(any()) } returns teamId
-        every { repo.findUserByPseudo(any()) } returns null
+        every { repo.findGhostUserByPseudo(any()) } returns null
         every { repo.insertGhostUser("carol") } returns premier
         every { repo.insertGhostUser("dave") } returns UUID.randomUUID()
 
@@ -84,7 +84,7 @@ class ImportServiceTest {
         val teamId = UUID.randomUUID()
         val alice = UUID.randomUUID()
         every { repo.findTeamByName("Les Renards") } returns teamId
-        every { repo.findUserByPseudo("alice") } returns alice
+        every { repo.findGhostUserByPseudo("alice") } returns alice
         every { repo.existsForTeam(tournamentId, teamId) } returns true
 
         val bilan = service.materialiser(tournamentId, listOf(equipe("Les Renards", "alice" to "Diamant")))
@@ -100,10 +100,32 @@ class ImportServiceTest {
     }
 
     @Test
+    fun `un import ne s'approprie pas le compte d'un joueur inscrit`() {
+        // Régression : la recherche portait sur TOUS les utilisateurs. Importer un
+        // fichier contenant le pseudo d'un joueur réellement inscrit rattachait son
+        // compte à l'équipe importée, sans son consentement. Seuls les joueurs
+        // fantômes — ceux que l'import a lui-même créés — sont réutilisables.
+        val teamId = UUID.randomUUID()
+        val fantome = UUID.randomUUID()
+        every { repo.findTeamByName(any()) } returns null
+        every { repo.insertGhostTeam(any()) } returns teamId
+        // Le dépôt ne rend rien : un compte Keycloak portant ce pseudo existe,
+        // mais il est invisible pour l'import.
+        every { repo.findGhostUserByPseudo("alexandre") } returns null
+        every { repo.insertGhostUser("alexandre") } returns fantome
+
+        service.materialiser(null, listOf(equipe("Nova", "alexandre" to "Or")))
+
+        // Un homonyme fantôme est créé, le compte réel n'est pas touché.
+        verify { repo.insertGhostUser("alexandre") }
+        verify { repo.attacherMembre(teamId, fantome, TeamMemberRole.captain, "Or") }
+    }
+
+    @Test
     fun `sans tournoi cible, les equipes sont creees mais pas inscrites`() {
         every { repo.findTeamByName(any()) } returns null
         every { repo.insertGhostTeam(any()) } returns UUID.randomUUID()
-        every { repo.findUserByPseudo(any()) } returns null
+        every { repo.findGhostUserByPseudo(any()) } returns null
         every { repo.insertGhostUser(any()) } returns UUID.randomUUID()
 
         val bilan = service.materialiser(null, listOf(equipe("Nova", "carol" to "Platine")))
@@ -121,7 +143,7 @@ class ImportServiceTest {
         val userId = UUID.randomUUID()
         every { repo.findTeamByName(any()) } returns null
         every { repo.insertGhostTeam(any()) } returns teamId
-        every { repo.findUserByPseudo(any()) } returns null
+        every { repo.findGhostUserByPseudo(any()) } returns null
         every { repo.insertGhostUser(any()) } returns userId
 
         service.materialiser(null, listOf(equipe("Nova", "carol" to "   ")))

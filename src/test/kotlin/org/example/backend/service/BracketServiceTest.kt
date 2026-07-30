@@ -27,8 +27,13 @@ class BracketServiceTest {
     private val tournaments = mockk<TournamentRepository>(relaxed = true)
     private val repo = mockk<BracketRepository>(relaxed = true)
     private val inscriptions = mockk<RegistrationRepository>(relaxed = true)
-    private val service = BracketService(tournaments, repo, inscriptions)
 
+    // Droits mockés en relaxed : ils laissent passer, l'autorisation a ses
+    // propres tests (DroitsTest). Ici on teste les règles du bracket.
+    private val droits = mockk<Droits>(relaxed = true)
+    private val service = BracketService(tournaments, repo, inscriptions, droits)
+
+    private val appelant = UUID.randomUUID()
     private val phaseId = UUID.randomUUID()
     private val tournamentId = UUID.randomUUID()
 
@@ -69,7 +74,7 @@ class BracketServiceTest {
         // Le domaine lève une erreur MÉTIER : il ne connaît pas HTTP. La
         // traduction en 400 appartient à GestionnaireErreurs.
         val erreur = assertFailsWith<ErreurMetier.Invalide> {
-            service.reportScore(UUID.randomUUID(), scoreA = 1, scoreB = 1)
+            service.reportScore(UUID.randomUUID(), scoreA = 1, scoreB = 1, callerId = appelant, estAdmin = true)
         }
         assertEquals("Pas de match nul en élimination directe", erreur.message)
     }
@@ -80,7 +85,7 @@ class BracketServiceTest {
         every { repo.findMatch(existing.id!!) } returns existing
 
         val erreur = assertFailsWith<ErreurMetier.Conflit> {
-            service.reportScore(existing.id!!, scoreA = 2, scoreB = 0)
+            service.reportScore(existing.id!!, scoreA = 2, scoreB = 0, appelant, true)
         }
         assertEquals("Match déjà terminé", erreur.message)
     }
@@ -91,7 +96,7 @@ class BracketServiceTest {
         every { repo.findMatch(existing.id!!) } returns existing
 
         val erreur = assertFailsWith<ErreurMetier.Conflit> {
-            service.reportScore(existing.id!!, scoreA = 2, scoreB = 0)
+            service.reportScore(existing.id!!, scoreA = 2, scoreB = 0, appelant, true)
         }
         assertEquals("Les deux participants ne sont pas encore connus", erreur.message)
     }
@@ -103,7 +108,7 @@ class BracketServiceTest {
         every { repo.findMatch(existing.id!!) } returns existing
         stubBracketRead()
 
-        service.reportScore(existing.id!!, scoreA = 2, scoreB = 1)
+        service.reportScore(existing.id!!, scoreA = 2, scoreB = 1, appelant, true)
 
         verify { repo.replaceScore(existing.id!!, 2, 1) }
         verify { repo.setResult(existing.id!!, existing.participant1Id!!, MatchStatus.finished) }
@@ -119,7 +124,7 @@ class BracketServiceTest {
         every { repo.findMatch(existing.id!!) } returns existing
         stubBracketRead()
 
-        service.reportScore(existing.id!!, scoreA = 0, scoreB = 3)
+        service.reportScore(existing.id!!, scoreA = 0, scoreB = 3, appelant, true)
 
         verify { repo.fillSlot(nextMatchId, slot1 = false, registrationId = existing.participant2Id!!) }
     }
@@ -131,7 +136,7 @@ class BracketServiceTest {
         every { repo.findMatch(existing.id!!) } returns existing
         stubBracketRead()
 
-        service.reportScore(existing.id!!, scoreA = 3, scoreB = 2)
+        service.reportScore(existing.id!!, scoreA = 3, scoreB = 2, appelant, true)
 
         verify { repo.setTournamentStatus(tournamentId, TournamentStatus.finished) }
     }

@@ -30,6 +30,7 @@ class ExportService(
     private val bracket: BracketRepository,
     private val inscriptions: RegistrationRepository,
     private val jobs: JobService,
+    private val droits: Droits,
 ) {
 
     /**
@@ -37,9 +38,12 @@ class ExportService(
      * l'appelant suit son avancement par `GET /jobs/{id}` puis récupère le
      * fichier dans `result.file_base64`.
      */
-    fun soumettre(tournamentId: UUID, createdBy: UUID?): JobDto {
+    fun soumettre(tournamentId: UUID, createdBy: UUID, estAdmin: Boolean): JobDto {
         val tournoi = tournaments.findById(tournamentId)
             ?: throw ErreurMetier.Introuvable("Tournoi introuvable")
+        // Un export contient les pseudos de tous les joueurs : ce n'est pas une
+        // donnée publique, même si le bracket l'est.
+        droits.exigerOrganisateur(tournamentId, createdBy, estAdmin)
         val phase = tournaments.findFirstPhase(tournamentId)
             ?: throw ErreurMetier.Conflit("Le tournoi n'a aucune phase")
 

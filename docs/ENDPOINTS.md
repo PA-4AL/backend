@@ -64,10 +64,10 @@ CORS restreint à `app.cors.allowed-origins`
 | 2 | GET | `/api/v1/tournaments/{id}` | public | 200 / 404 |
 | 3 | POST | `/api/v1/tournaments` | JWT | 201 |
 | 4 | GET | `/api/v1/tournaments/{id}/bracket` | public | 200 |
-| 5 | POST | `/api/v1/tournaments/{id}/bracket/generate` | JWT | 200 |
-| 5b | POST | `/api/v1/tournaments/{id}/bracket/swap` | JWT | 200 |
+| 5 | POST | `/api/v1/tournaments/{id}/bracket/generate` | JWT organisateur | 200 |
+| 5b | POST | `/api/v1/tournaments/{id}/bracket/swap` | JWT organisateur | 200 |
 | 5c | POST | `/api/v1/tournaments/{id}/export` | JWT organizer | 200 |
-| 6 | POST | `/api/v1/matches/{matchId}/score` | JWT | 200 |
+| 6 | POST | `/api/v1/matches/{matchId}/score` | JWT organisateur | 200 |
 | 7 | GET | `/api/v1/tournaments/{id}/participants` | public | 200 |
 | 8 | POST | `/api/v1/tournaments/{id}/register` | JWT | 201 |
 | 9 | POST | `/api/v1/tournaments/{id}/register-team` | JWT | 201 |
@@ -141,6 +141,12 @@ Liste tous les tournois, triés par `start_at` décroissant (NULL en dernier).
 ## Bracket & matchs
 
 `BracketController` → `BracketService`
+
+> **« JWT organisateur »** signifie deux contrôles cumulés : le rôle
+> `organizer` ou `admin` dans le jeton, **et** l'appartenance à
+> `tournament_organizers` du tournoi visé. Le rôle seul autorisait un organisateur
+> à modifier le tournoi d'un autre — voir `docs/adr/0009-autorisation-par-objet.md`.
+> Refus : **403** `"Vous n'êtes pas organisateur de ce tournoi"`.
 
 ### 4. `GET /api/v1/tournaments/{id}/bracket` — public
 

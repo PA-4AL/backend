@@ -99,6 +99,15 @@ class JobService(
             "teams" to teams,
             "matches" to matches,
         )
+        // Même plafond que l'import : le fichier revient en base64 dans un message
+        // Pub/Sub, limité à 10 Mo. Sans ce contrôle, un gros tournoi échouait avec
+        // une erreur de messagerie incompréhensible pour l'utilisateur.
+        val taille = mapper.writeValueAsString(payload).length
+        if (taille > MAX_PAYLOAD_BYTES) {
+            throw ErreurMetier.TropVolumineux(
+                "Ce tournoi est trop volumineux pour être exporté en une fois (limite : 10 Mo)",
+            )
+        }
         return submit(JobType.team_export, TASK_EXPORT, payload, createdBy)
     }
 

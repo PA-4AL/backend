@@ -79,6 +79,19 @@ class TournamentRepository(private val dsl: DSLContext) {
         .limit(1)
         .fetchOne(USERS.PSEUDO)
 
+    /**
+     * Cet utilisateur est-il organisateur de ce tournoi (propriétaire ou
+     * co-organisateur) ?
+     *
+     * C'est le contrôle d'autorisation par objet des routes d'écriture : le rôle
+     * `organizer` du jeton dit qu'on organise *quelque chose*, pas ce tournoi-ci.
+     */
+    fun estOrganisateur(tournamentId: UUID, userId: UUID): Boolean = dsl.fetchExists(
+        TOURNAMENT_ORGANIZERS,
+        TOURNAMENT_ORGANIZERS.TOURNAMENT_ID.eq(tournamentId)
+            .and(TOURNAMENT_ORGANIZERS.USER_ID.eq(userId)),
+    )
+
     /** Inscriptions actives avec le nom affichable (équipe ou joueur solo). */
     fun findActiveParticipants(tournamentId: UUID): List<ParticipantRow> =
         dsl.select(REGISTRATIONS.ID, REGISTRATIONS.SEED, TEAMS.NAME, USERS.PSEUDO)
