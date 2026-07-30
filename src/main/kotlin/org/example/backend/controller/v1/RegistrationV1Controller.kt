@@ -75,9 +75,11 @@ class RegistrationV1Controller(
     ): ResponseEntity<ParticipantDto> = ResponseEntity.status(HttpStatus.CREATED)
         .body(service.addManual(id, body.name, currentUserId(jwt), estAdmin(jwt)))
 
-    /** Inscriptions à traiter (organisateur). */
+    /** Inscriptions à traiter — celles de SES tournois, toutes pour un admin. */
     @GetMapping("/registrations/pending")
-    fun pending(): List<PendingRegistrationDto> = service.pending()
+    @PreAuthorize("hasAnyRole('organizer', 'admin')")
+    fun pending(@AuthenticationPrincipal jwt: Jwt): List<PendingRegistrationDto> =
+        service.pending(currentUserId(jwt), estAdmin(jwt))
 
     /** Seeding manuel avant génération du bracket. */
     @PostMapping("/registrations/{id}/seed")

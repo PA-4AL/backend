@@ -45,6 +45,41 @@ class TournamentRepository(private val dsl: DSLContext) {
             .fetch { r -> r.into(TOURNAMENTS) to (r.get("participants", Int::class.java) ?: 0) }
     }
 
+    /**
+     * Tournois que cet utilisateur organise.
+     *
+     * Deux requêtes d'ensembles plutôt qu'un `EXISTS` corrélé par ligne : la liste
+     * complète est déjà chargée, et deux lectures indexées coûtent moins que N
+     * sous-requêtes.
+     */
+    fun idsOrganisesPar(userId: UUID): Set<UUID> = dsl.select(TOURNAMENT_ORGANIZERS.TOURNAMENT_ID)
+        .from(TOURNAMENT_ORGANIZERS)
+        .where(TOURNAMENT_ORGANIZERS.USER_ID.eq(userId))
+        .fetchSet(TOURNAMENT_ORGANIZERS.TOURNAMENT_ID)
+        .filterNotNull()
+        .toSet()
+
+    /**
+     * Tournois où cet utilisateur est engagé — en solo, ou par une équipe dont il
+     * est membre. Les désistements sont exclus : on ne « participe » plus.
+     */
+    fun idsAvecParticipationDe(userId: UUID): Set<UUID> {
+        val actif = REGISTRATIONS.STATUS.ne(RegistrationStatus.withdrawn)
+
+        val solo = dsl.select(REGISTRATIONS.TOURNAMENT_ID)
+            .from(REGISTRATIONS)
+            .where(REGISTRATIONS.USER_ID.eq(userId).and(actif))
+            .fetchSet(REGISTRATIONS.TOURNAMENT_ID)
+
+        val parEquipe = dsl.selectDistinct(REGISTRATIONS.TOURNAMENT_ID)
+            .from(REGISTRATIONS)
+            .join(TEAM_MEMBERS).on(TEAM_MEMBERS.TEAM_ID.eq(REGISTRATIONS.TEAM_ID))
+            .where(TEAM_MEMBERS.USER_ID.eq(userId).and(actif))
+            .fetchSet(REGISTRATIONS.TOURNAMENT_ID)
+
+        return (solo + parEquipe).filterNotNull().toSet()
+    }
+
     fun findById(id: UUID): TournamentsRecord? = dsl.selectFrom(TOURNAMENTS).where(TOURNAMENTS.ID.eq(id)).fetchOne()
 
     fun countParticipants(tournamentId: UUID): Int = dsl.fetchCount(

@@ -3,6 +3,7 @@ package org.example.backend.controller.v1
 import org.example.backend.model.CreateTournamentRequest
 import org.example.backend.model.TournamentDetailDto
 import org.example.backend.model.TournamentSummaryDto
+import org.example.backend.repository.RegistrationRepository
 import org.example.backend.service.TournamentService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -19,11 +20,22 @@ import java.util.UUID
 /** Préfixe `/api/v1` appliqué par `WebMvcConfig` — ne pas l'écrire ici. */
 @RestController
 @RequestMapping("/tournaments", version = "1+")
-class TournamentV1Controller(private val service: TournamentService) {
+class TournamentV1Controller(
+    private val service: TournamentService,
+    private val registrations: RegistrationRepository,
+) {
 
-    /** Consultation publique (spec : rôle Visiteur). */
+    /**
+     * Consultation publique (spec : rôle Visiteur), **annotée si l'on est connu**.
+     *
+     * Le jeton est optionnel : la route reste ouverte aux visiteurs. Quand il est
+     * présent, chaque tournoi indique si le lecteur l'organise et s'il y participe,
+     * ce qui permet à l'interface de séparer ses tournois de ceux où il peut encore
+     * s'inscrire — sans recouper les inscriptions côté client.
+     */
     @GetMapping
-    fun list(): List<TournamentSummaryDto> = service.list()
+    fun list(@AuthenticationPrincipal jwt: Jwt?): List<TournamentSummaryDto> =
+        service.list(jwt?.let { currentUserId(it) })
 
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): ResponseEntity<TournamentDetailDto> =
@@ -49,4 +61,11 @@ class TournamentV1Controller(private val service: TournamentService) {
             .toUri()
         return ResponseEntity.created(location).body(created)
     }
+
+    /** Identifiant interne du lecteur, rattaché à son compte Keycloak. */
+    private fun currentUserId(jwt: Jwt): UUID = registrations.upsertUserByKeycloak(
+        jwt.subject,
+        jwt.getClaimAsString("preferred_username") ?: "Joueur",
+        jwt.getClaimAsString("email"),
+    )
 }
